@@ -66,8 +66,10 @@ and uses the same Let's Encrypt certificate resolver. It does not overlap the
 official `/api`, `/relay`, `/oauth2`, or gRPC routes.
 
 Before relying on room isolation, run the explicit migration once. This disables
-the account-wide `Default All -> All` policy; the existing `lzh66` peer is left
-outside every room and therefore loses access until it joins a room:
+the account-wide `Default All -> All` policy. Existing peer and Group memberships
+are preserved; the Room API does not migrate or delete `lzh66` (any pre-existing
+test Group remains unmanaged), so it will only communicate where an explicit
+room policy permits it:
 
 ```bash
 docker compose --profile room-api run --rm room-api --disable-default-policy
