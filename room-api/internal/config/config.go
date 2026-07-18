@@ -18,6 +18,7 @@ type Config struct {
 	AdminToken           string
 	CreateRatePerMinute  int
 	JoinRatePerMinute    int
+	PeerRatePerMinute    int
 	MaxBodyBytes         int64
 	ProvisionConcurrency int
 }
@@ -31,13 +32,14 @@ func Load() (Config, error) {
 		AdminToken:           os.Getenv("ROOM_API_ADMIN_TOKEN"),
 		CreateRatePerMinute:  intEnv("ROOM_API_CREATE_RATE_PER_MINUTE", 5),
 		JoinRatePerMinute:    intEnv("ROOM_API_JOIN_RATE_PER_MINUTE", 30),
+		PeerRatePerMinute:    intEnv("ROOM_API_PEER_RATE_PER_MINUTE", 60),
 		MaxBodyBytes:         int64Env("ROOM_API_MAX_BODY_BYTES", 4096),
 		ProvisionConcurrency: intEnv("ROOM_API_PROVISION_CONCURRENCY", 2),
 	}
 	if c.PAT == "" {
 		return Config{}, fmt.Errorf("NETBIRD_PAT is required")
 	}
-	if c.CreateRatePerMinute < 1 || c.JoinRatePerMinute < 1 || c.ProvisionConcurrency < 1 {
+	if c.CreateRatePerMinute < 1 || c.JoinRatePerMinute < 1 || c.PeerRatePerMinute < 1 || c.ProvisionConcurrency < 1 {
 		return Config{}, fmt.Errorf("rate limits and provision concurrency must be positive")
 	}
 	key, err := encryptionKey(os.Getenv("ROOM_API_ENCRYPTION_KEY"))

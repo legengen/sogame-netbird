@@ -15,11 +15,11 @@
 
 ## 3. Room API
 
-- [ ] 3.1 Implement `POST /rooms` with high-entropy code generation, idempotency, public response, and rate/concurrency limits.
-- [ ] 3.2 Implement `POST /rooms/join` with constant-shape invalid-code handling and encrypted Setup Key retrieval.
-- [ ] 3.3 Implement `GET /rooms/{roomCode}/peers` using Group membership and NetBird Peer metadata.
-- [ ] 3.4 Implement explicit room disablement and ensure disabled rooms cannot be joined.
-- [ ] 3.5 Add request validation, size limits, rate-limit responses, and audit metrics for all public endpoints.
+- [x] 3.1 Implement `POST /rooms` with high-entropy code generation, idempotency, public response, and rate/concurrency limits.
+- [x] 3.2 Implement `POST /rooms/join` with constant-shape invalid-code handling and encrypted Setup Key retrieval.
+- [x] 3.3 Implement `GET /rooms/{roomCode}/peers` using Group membership and NetBird Peer metadata.
+- [x] 3.4 Implement explicit room disablement and ensure disabled rooms cannot be joined.
+- [x] 3.5 Add request validation, size limits, rate-limit responses, and audit metrics for all public endpoints.
 
 ## 4. Policy and Deployment Migration
 

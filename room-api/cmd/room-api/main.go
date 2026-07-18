@@ -48,7 +48,7 @@ func main() {
 		log.Printf("room reconciliation failed: %v", err)
 	}
 
-	handler := httpapi.New(service, httpapi.Config{AdminToken: cfg.AdminToken, MaxBodyBytes: cfg.MaxBodyBytes, CreateRatePerMinute: cfg.CreateRatePerMinute, JoinRatePerMinute: cfg.JoinRatePerMinute, ProvisionConcurrency: cfg.ProvisionConcurrency})
+	handler := httpapi.New(service, httpapi.Config{AdminToken: cfg.AdminToken, MaxBodyBytes: cfg.MaxBodyBytes, CreateRatePerMinute: cfg.CreateRatePerMinute, JoinRatePerMinute: cfg.JoinRatePerMinute, PeerRatePerMinute: cfg.PeerRatePerMinute, ProvisionConcurrency: cfg.ProvisionConcurrency})
 	server := &http.Server{Addr: cfg.Addr, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {
 		log.Printf("room API listening on %s", cfg.Addr)
