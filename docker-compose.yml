@@ -112,7 +112,11 @@ services:
   # creating room-api.env from room-api.env.example.
   room-api:
     profiles: [room-api]
-    build: ./room-api
+    build:
+      context: ./room-api
+      args:
+        GO_IMAGE: ${ROOM_API_GO_IMAGE:-dockerproxy.net/library/golang:1.25}
+        RUNTIME_IMAGE: ${ROOM_API_RUNTIME_IMAGE:-dockerproxy.net/library/debian:bookworm-slim}
     container_name: netbird-room-api
     restart: unless-stopped
     networks: [netbird]
