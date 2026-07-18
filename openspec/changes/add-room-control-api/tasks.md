@@ -1,17 +1,17 @@
 ## 1. Service Foundation
 
 - [ ] 1.1 Choose the Room API runtime and add its Docker Compose service without changing the official NetBird containers.
-- [ ] 1.2 Add configuration loading for the NetBird Management URL, PAT secret, encryption key, database path, and rate limits.
-- [ ] 1.3 Add SQLite migrations for rooms and provisioning operations with unique room-code hashes and NetBird resource IDs.
-- [ ] 1.4 Add structured audit events and secret-redacting request/error logging.
+- [x] 1.2 Add configuration loading for the NetBird Management URL, PAT secret, encryption key, database path, and rate limits.
+- [x] 1.3 Add SQLite migrations for rooms and provisioning operations with unique room-code hashes and NetBird resource IDs.
+- [x] 1.4 Add structured audit events and secret-redacting request/error logging.
 
 ## 2. NetBird Integration
 
-- [ ] 2.1 Implement a typed NetBird REST client for Groups, Setup Keys, Policies, and Peer/Group queries.
-- [ ] 2.2 Implement deterministic resource names and idempotent lookup for room provisioning retries.
-- [ ] 2.3 Implement room provisioning as a compensating workflow: Group, permanent reusable unlimited Setup Key, same-Group Policy, then active state.
-- [ ] 2.4 Implement Setup Key encryption/decryption and ensure the PAT and clear Setup Key never enter logs or responses outside intended room operations.
-- [ ] 2.5 Implement reconciliation for creating/error rooms and safe Setup Key revocation on failed provisioning.
+- [x] 2.1 Implement a typed NetBird REST client for Groups, Setup Keys, Policies, and Peer/Group queries.
+- [x] 2.2 Implement deterministic resource names and idempotent lookup for room provisioning retries.
+- [x] 2.3 Implement room provisioning as a compensating workflow: Group, permanent reusable unlimited Setup Key, same-Group Policy, then active state.
+- [x] 2.4 Implement Setup Key encryption/decryption and ensure the PAT and clear Setup Key never enter logs or responses outside intended room operations.
+- [x] 2.5 Implement reconciliation for creating/error rooms and safe Setup Key revocation on failed provisioning.
 
 ## 3. Room API
 

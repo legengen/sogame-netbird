@@ -34,6 +34,11 @@ type Operation struct {
 	Status         string
 }
 
+type RoomOperation struct {
+	RoomID string
+	Operation
+}
+
 type Store struct{ DB *sql.DB }
 
 func Open(path string) (*Store, error) {
@@ -97,7 +102,15 @@ func (s *Store) GetOperation(ctx context.Context, key string) (Operation, error)
 }
 
 func (s *Store) SaveOperation(ctx context.Context, key string, response []byte, status string) error {
+	if response == nil {
+		response = []byte{}
+	}
 	_, err := s.DB.ExecContext(ctx, `UPDATE operations SET response_ciphertext=?, status=? WHERE idempotency_key=?`, response, status, key)
+	return err
+}
+
+func (s *Store) ResetOperation(ctx context.Context, key, roomID string) error {
+	_, err := s.DB.ExecContext(ctx, `UPDATE operations SET room_id=?, response_ciphertext='', status='creating' WHERE idempotency_key=?`, roomID, key)
 	return err
 }
 
@@ -127,6 +140,40 @@ func (s *Store) GetRoomByCodeHash(ctx context.Context, hash []byte) (Room, error
 
 func (s *Store) GetRoom(ctx context.Context, id string) (Room, error) {
 	return s.scanRoom(s.DB.QueryRowContext(ctx, `SELECT id, code_hash, code_ciphertext, group_id, setup_key_id, setup_key_ciphertext, policy_id, status, created_at, disabled_at, last_error FROM rooms WHERE id=?`, id))
+}
+
+func (s *Store) ListRoomsByStatus(ctx context.Context, status string) ([]Room, error) {
+	rows, err := s.DB.QueryContext(ctx, `SELECT id, code_hash, code_ciphertext, group_id, setup_key_id, setup_key_ciphertext, policy_id, status, created_at, disabled_at, last_error FROM rooms WHERE status=?`, status)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var rooms []Room
+	for rows.Next() {
+		room, err := s.scanRoom(rows)
+		if err != nil {
+			return nil, err
+		}
+		rooms = append(rooms, room)
+	}
+	return rooms, rows.Err()
+}
+
+func (s *Store) ListOperationsByStatus(ctx context.Context, status string) ([]RoomOperation, error) {
+	rows, err := s.DB.QueryContext(ctx, `SELECT idempotency_key, room_id, response_ciphertext, status FROM operations WHERE status=?`, status)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var operations []RoomOperation
+	for rows.Next() {
+		var operation RoomOperation
+		if err := rows.Scan(&operation.IdempotencyKey, &operation.RoomID, &operation.Response, &operation.Status); err != nil {
+			return nil, err
+		}
+		operations = append(operations, operation)
+	}
+	return operations, rows.Err()
 }
 
 type rowScanner interface{ Scan(dest ...any) error }
