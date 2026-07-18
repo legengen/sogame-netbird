@@ -10,6 +10,7 @@ RUN CGO_ENABLED=1 GOFLAGS=-mod=vendor go build -trimpath -ldflags='-s -w' -o /ou
 
 FROM ${RUNTIME_IMAGE}
 
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 RUN useradd --system --uid 10001 --create-home roomapi
 WORKDIR /app
 COPY --from=build /out/room-api /app/room-api
