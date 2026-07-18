@@ -1,0 +1,26 @@
+# Runtime and secret-bearing NetBird configuration
+config.yaml
+dashboard.env
+*.pat
+*.setup-key
+*.db
+*.sqlite
+*.sqlite3
+.env
+.env.*
+
+# Local generated state
+data/
+volumes/
+tmp/
+.codex/
+
+# Python tooling
+__pycache__/
+*.py[cod]
+.venv/
+
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/
