@@ -126,32 +126,42 @@ func (s *Service) Create(ctx context.Context, idempotencyKey string) (RoomRespon
 
 	resourceName := "room-" + roomID
 	group, found, err := s.findGroup(ctx, resourceName)
+	createdGroup := false
 	if err == nil && !found {
 		group, err = s.nb.CreateGroup(ctx, resourceName)
+		createdGroup = err == nil
 	}
 	if err != nil {
 		return s.fail(ctx, roomID, idempotencyKey, fmt.Errorf("create group: %w", err))
 	}
 	key, err := s.nb.CreateSetupKey(ctx, resourceName, group.ID)
 	if err != nil {
-		_ = s.nb.DeleteGroup(ctx, group.ID)
+		if createdGroup {
+			_ = s.nb.DeleteGroup(ctx, group.ID)
+		}
 		return s.fail(ctx, roomID, idempotencyKey, fmt.Errorf("create setup key: %w", err))
 	}
 	keyCiphertext, err := roomcrypto.Seal(s.cfg.EncryptionKey, []byte(key.Key))
 	if err != nil {
 		_ = s.nb.RevokeSetupKey(ctx, key.ID, []string{group.ID})
-		_ = s.nb.DeleteGroup(ctx, group.ID)
+		if createdGroup {
+			_ = s.nb.DeleteGroup(ctx, group.ID)
+		}
 		return s.fail(ctx, roomID, idempotencyKey, fmt.Errorf("encrypt setup key: %w", err))
 	}
 	if err := s.store.UpdateExternalIDs(ctx, roomID, group.ID, key.ID, "", keyCiphertext); err != nil {
 		_ = s.nb.RevokeSetupKey(ctx, key.ID, []string{group.ID})
-		_ = s.nb.DeleteGroup(ctx, group.ID)
+		if createdGroup {
+			_ = s.nb.DeleteGroup(ctx, group.ID)
+		}
 		return s.fail(ctx, roomID, idempotencyKey, fmt.Errorf("save resources: %w", err))
 	}
 	policy, err := s.nb.CreateRoomPolicy(ctx, resourceName+"-internal", group.ID)
 	if err != nil {
 		_ = s.nb.RevokeSetupKey(ctx, key.ID, []string{group.ID})
-		_ = s.nb.DeleteGroup(ctx, group.ID)
+		if createdGroup {
+			_ = s.nb.DeleteGroup(ctx, group.ID)
+		}
 		return s.fail(ctx, roomID, idempotencyKey, fmt.Errorf("create policy: %w", err))
 	}
 	if err := s.store.UpdateExternalIDs(ctx, roomID, group.ID, key.ID, policy.ID, keyCiphertext); err != nil {
