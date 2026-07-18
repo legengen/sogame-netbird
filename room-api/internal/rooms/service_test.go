@@ -2,6 +2,7 @@ package rooms
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -17,6 +18,7 @@ type fakeNetBird struct {
 	deletedGroup  string
 	deletedKey    string
 	deletedPolicy string
+	setupErr      bool
 }
 
 func (f *fakeNetBird) ListGroups(context.Context) ([]netbird.Group, error) { return f.groups, nil }
@@ -31,6 +33,9 @@ func (f *fakeNetBird) DeleteGroup(_ context.Context, id string) error {
 }
 func (f *fakeNetBird) ListSetupKeys(context.Context) ([]netbird.SetupKey, error) { return nil, nil }
 func (f *fakeNetBird) CreateSetupKey(_ context.Context, name, _ string) (netbird.SetupKeyClear, error) {
+	if f.setupErr {
+		return netbird.SetupKeyClear{}, errors.New("setup key unavailable")
+	}
 	return netbird.SetupKeyClear{SetupKey: netbird.SetupKey{ID: "key-1", Name: name}, Key: "clear-setup-key"}, nil
 }
 func (f *fakeNetBird) RevokeSetupKey(_ context.Context, id string, _ []string) error {
@@ -125,5 +130,25 @@ func TestReconcileInterruptedOperation(t *testing.T) {
 	}
 	if fake.deletedGroup != "group-1" || fake.deletedKey != "key-1" || fake.deletedPolicy != "policy-1" {
 		t.Fatalf("reconcile cleanup = group %q, key %q, policy %q", fake.deletedGroup, fake.deletedKey, fake.deletedPolicy)
+	}
+}
+
+func TestCreateCompensatesWhenSetupKeyFails(t *testing.T) {
+	db, err := store.Open(filepath.Join(t.TempDir(), "rooms.db"))
+	if err != nil {
+		t.Fatalf("store.Open() error = %v", err)
+	}
+	defer db.Close()
+	fake := &fakeNetBird{setupErr: true}
+	service := New(db, fake, Config{ManagementURL: "https://legengen.top", EncryptionKey: []byte("01234567890123456789012345678901")})
+	if _, err := service.Create(context.Background(), ""); err == nil {
+		t.Fatal("Create() unexpectedly succeeded")
+	}
+	if fake.deletedGroup != "group-1" {
+		t.Fatalf("compensation deleted group = %q", fake.deletedGroup)
+	}
+	rooms, err := db.ListRoomsByStatus(context.Background(), "error")
+	if err != nil || len(rooms) != 1 {
+		t.Fatalf("error rooms = %+v, %v", rooms, err)
 	}
 }

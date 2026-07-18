@@ -1,6 +1,6 @@
 ## 1. Service Foundation
 
-- [ ] 1.1 Choose the Room API runtime and add its Docker Compose service without changing the official NetBird containers.
+- [x] 1.1 Choose the Room API runtime and add its Docker Compose service without changing the official NetBird containers.
 - [x] 1.2 Add configuration loading for the NetBird Management URL, PAT secret, encryption key, database path, and rate limits.
 - [x] 1.3 Add SQLite migrations for rooms and provisioning operations with unique room-code hashes and NetBird resource IDs.
 - [x] 1.4 Add structured audit events and secret-redacting request/error logging.
@@ -23,16 +23,16 @@
 
 ## 4. Policy and Deployment Migration
 
-- [ ] 4.1 Add an explicit migration command or guarded startup step to disable the existing `Default All -> All` policy.
-- [ ] 4.2 Preserve the existing `lzh66` Peer without assigning it to a room and document its expected loss of access.
-- [ ] 4.3 Add Traefik routing for `/rooms` with priority above the Dashboard catch-all and verify no collision with NetBird `/api`, `/relay`, or `/oauth2` routes.
-- [ ] 4.4 Add service secret and SQLite volume wiring with restrictive permissions and no secret values committed to the repository.
+- [x] 4.1 Add an explicit migration command or guarded startup step to disable the existing `Default All -> All` policy.
+- [x] 4.2 Preserve the existing `lzh66` Peer without assigning it to a room and document its expected loss of access.
+- [x] 4.3 Add Traefik routing for `/rooms` with priority above the Dashboard catch-all and verify no collision with NetBird `/api`, `/relay`, or `/oauth2` routes.
+- [x] 4.4 Add service secret and SQLite volume wiring with restrictive permissions and no secret values committed to the repository.
 
 ## 5. Verification
 
-- [ ] 5.1 Test room creation and retry idempotency with Postman or automated HTTP tests.
+- [x] 5.1 Test room creation and retry idempotency with Postman or automated HTTP tests.
 - [ ] 5.2 Enroll two Peers with one room Setup Key and verify both are auto-assigned to the room Group.
 - [ ] 5.3 Create a second room and verify same-room traffic is allowed while cross-room traffic is denied after the default policy migration.
-- [ ] 5.4 Verify invalid/disabled room codes, rate limits, secret redaction, and failed NetBird API compensation.
-- [ ] 5.5 Verify restart/reconciliation behavior and persistent room/Setup Key state across service restarts.
-- [ ] 5.6 Document the API contract, PAT rotation, backup/rollback procedure, and the future graphical-client integration boundary.
+- [x] 5.4 Verify invalid/disabled room codes, rate limits, secret redaction, and failed NetBird API compensation.
+- [x] 5.5 Verify restart/reconciliation behavior and persistent room/Setup Key state across service restarts.
+- [x] 5.6 Document the API contract, PAT rotation, backup/rollback procedure, and the future graphical-client integration boundary.

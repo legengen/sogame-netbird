@@ -108,9 +108,37 @@ services:
         max-size: "500m"
         max-file: "2"
 
+  # Optional public room-control API. Enable with --profile room-api after
+  # creating room-api.env from room-api.env.example.
+  room-api:
+    profiles: [room-api]
+    build: ./room-api
+    container_name: netbird-room-api
+    restart: unless-stopped
+    networks: [netbird]
+    env_file:
+      - path: ./room-api.env
+        required: false
+    volumes:
+      - room_api_data:/var/lib/room-api
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.room-api.rule=Host(`legengen.top`) && PathPrefix(`/rooms`)
+      - traefik.http.routers.room-api.entrypoints=websecure
+      - traefik.http.routers.room-api.tls=true
+      - traefik.http.routers.room-api.tls.certresolver=letsencrypt
+      - traefik.http.routers.room-api.priority=200
+      - traefik.http.services.room-api.loadbalancer.server.port=8080
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
 volumes:
   netbird_data:
   netbird_traefik_letsencrypt:
+  room_api_data:
 
 networks:
   netbird:

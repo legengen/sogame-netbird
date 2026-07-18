@@ -3,6 +3,7 @@ config.yaml
 dashboard.env
 *.pat
 *.setup-key
+room-api/room-api
 *.db
 *.sqlite
 *.sqlite3
