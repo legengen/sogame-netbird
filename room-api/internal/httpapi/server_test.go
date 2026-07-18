@@ -55,6 +55,11 @@ func TestPublicRoomRoutesAndAdminBoundary(t *testing.T) {
 	if health.Code != http.StatusOK {
 		t.Fatalf("health status = %d", health.Code)
 	}
+	roomHealth := httptest.NewRecorder()
+	server.ServeHTTP(roomHealth, httptest.NewRequest(http.MethodGet, "/rooms/healthz", nil))
+	if roomHealth.Code != http.StatusOK {
+		t.Fatalf("room health status = %d", roomHealth.Code)
+	}
 
 	create := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/rooms", nil)

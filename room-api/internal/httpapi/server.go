@@ -45,7 +45,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		audit.Event("http_request", map[string]any{"method": r.Method, "path": r.URL.Path, "status": status.status, "duration_ms": time.Since(started).Milliseconds(), "remote": remoteIP(r)})
 	}()
 
-	if r.URL.Path == "/healthz" {
+	if r.URL.Path == "/healthz" || r.URL.Path == "/rooms/healthz" {
 		writeJSON(status, http.StatusOK, map[string]string{"status": "ok"})
 		return
 	}
