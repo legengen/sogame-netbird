@@ -1,6 +1,7 @@
 # Runtime and secret-bearing NetBird configuration
 config.yaml
 dashboard.env
+room-api.env
 *.pat
 *.setup-key
 room-api/room-api
