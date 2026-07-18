@@ -125,6 +125,12 @@ services:
         required: false
     volumes:
       - room_api_data:/var/lib/room-api
+    healthcheck:
+      test: ["CMD", "/app/room-api", "--healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     labels:
       - traefik.enable=true
       - traefik.http.routers.room-api.rule=Host(`legengen.top`) && PathPrefix(`/rooms`)

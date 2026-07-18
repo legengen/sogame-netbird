@@ -21,6 +21,7 @@ import (
 
 func main() {
 	migrateDefault := flag.Bool("disable-default-policy", false, "disable the account-wide Default All-to-All policy and exit")
+	healthcheck := flag.Bool("healthcheck", false, "check local configuration and SQLite health, then exit")
 	flag.Parse()
 
 	cfg, err := config.Load()
@@ -35,6 +36,12 @@ func main() {
 		log.Fatal(err)
 	}
 	defer database.Close()
+	if *healthcheck {
+		if err := database.MustHealthy(context.Background()); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	client := netbird.New(cfg.ManagementURL, cfg.PAT)
 	service := rooms.New(database, client, rooms.Config{ManagementURL: cfg.ManagementURL, EncryptionKey: cfg.EncryptionKey})
 	if *migrateDefault {
