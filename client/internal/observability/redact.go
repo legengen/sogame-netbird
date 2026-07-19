@@ -12,6 +12,12 @@ var (
 	credentialAssignment = regexp.MustCompile(`(?i)(authorization|setup[-_ ]?key|room[-_ ]?code|admin[-_ ]?token|private[-_ ]?key|bearer)(\s*[:=]\s*|\s+)[^\s,;]+`)
 	roomCodePattern      = regexp.MustCompile(`(?i)\b[A-Z0-9]{4}(?:-[A-Z0-9]{4}){2}\b`)
 	setupKeyPattern      = regexp.MustCompile(`(?i)\b[0-9A-F]{8}(?:-[0-9A-F]{4}){3}-[0-9A-F]{12}\b`)
+	privateKeyBlock      = regexp.MustCompile(`(?is)-----BEGIN [^-]*PRIVATE KEY-----.*?-----END [^-]*PRIVATE KEY-----`)
+	ipv4Pattern          = regexp.MustCompile(`\b(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}\b`)
+	ipv6Pattern          = regexp.MustCompile(`(?i)\b(?:[0-9a-f]{0,4}:){2,}[0-9a-f:]{2,}\b`)
+	hostURLPattern       = regexp.MustCompile(`(?i)(https?://)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?`)
+	hostnamePattern      = regexp.MustCompile(`(?i)\b[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z]{2,})+\b`)
+	peerIDPattern        = regexp.MustCompile(`(?i)\b[0-9a-f]{64}\b`)
 )
 
 var sensitiveKeys = map[string]struct{}{
@@ -27,9 +33,21 @@ var sensitiveKeys = map[string]struct{}{
 }
 
 func Redact(value string) string {
+	value = privateKeyBlock.ReplaceAllString(value, "[PRIVATE_KEY]")
 	value = credentialAssignment.ReplaceAllString(value, "$1=[REDACTED]")
 	value = setupKeyPattern.ReplaceAllString(value, "[REDACTED]")
 	return roomCodePattern.ReplaceAllString(value, "[REDACTED]")
+}
+
+// Anonymize applies the credential redaction rules and removes network and
+// peer identifiers before diagnostic data leaves the in-memory report.
+func Anonymize(value string) string {
+	value = Redact(value)
+	value = ipv4Pattern.ReplaceAllString(value, "[IP]")
+	value = ipv6Pattern.ReplaceAllString(value, "[IP]")
+	value = peerIDPattern.ReplaceAllString(value, "[PEER_ID]")
+	value = hostURLPattern.ReplaceAllString(value, "${1}[HOST]")
+	return hostnamePattern.ReplaceAllString(value, "[HOST]")
 }
 
 func isSensitiveKey(key string) bool {

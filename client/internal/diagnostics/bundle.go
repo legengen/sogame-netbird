@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/legengen/sogame-netbird/client/internal/observability"
 )
 
 const (
@@ -62,6 +64,9 @@ func (w *Writer) Write(ctx context.Context, source Source) (string, error) {
 	if len(report.Logs) > maxReportBytes {
 		return "", errors.New("diagnostic logs exceed size limit")
 	}
+	application = []byte(observability.Anonymize(string(application)))
+	netbird = []byte(observability.Anonymize(string(netbird)))
+	logs := []byte(observability.Anonymize(string(report.Logs)))
 	if err := os.MkdirAll(w.Directory, 0o700); err != nil {
 		return "", fmt.Errorf("create diagnostic directory: %w", err)
 	}
@@ -85,7 +90,7 @@ func (w *Writer) Write(ctx context.Context, source Source) (string, error) {
 	if err := writeEntry(archive, "netbird.json", netbird); err != nil {
 		return "", err
 	}
-	if err := writeEntry(archive, "logs.txt", report.Logs); err != nil {
+	if err := writeEntry(archive, "logs.txt", logs); err != nil {
 		return "", err
 	}
 	if err := writeEntry(archive, "README.txt", []byte("This diagnostic bundle is local-only. No data was uploaded.\n")); err != nil {
