@@ -13,6 +13,7 @@
 - A fresh Room API create/join flow was exercised through the self-hosted control plane: the peer endpoint reported exactly two connected peers, both initially observed as idle before traffic established the P2P path.
 - The room identity was selected through the dedicated `sogame-room` profile while the unrelated `default` profile remained present and inactive. Management/Signal readiness without a tunnel was observed before peer traffic transitioned the daemon to `Peers count: 1/1 Connected` and P2P.
 - Moving one client into a second room produced one peer in each room and blocked cross-room traffic. Returning it to the original room restored two peers and P2P. The desktop command surface has no room-disable operation, and the leave test rejects any administrative disable call.
+- Restarting the official daemon on both Linux and Windows preserved the enrolled identities and restored Management, Signal, the room network map, and P2P without retrieving another Setup Key. Explicit disconnect/reconnect and deregister/re-enroll room switching were also exercised.
 
 ## Environment-gated evidence
 
@@ -20,6 +21,6 @@ The following release gates remain pending because this workspace has no clean W
 
 - Clean Windows VM RPC probe and install lifecycle matrix.
 - Clean install, repair, upgrade, GUI-only uninstall, and optional daemon removal.
-- Sleep/network-switch/daemon-restart end-to-end workflows.
+- Physical sleep, network-switch, and GUI-restart end-to-end workflows (daemon restart and CLI lifecycle recovery are verified above).
 
 These are explicit environment gates, not simulated local test results.
