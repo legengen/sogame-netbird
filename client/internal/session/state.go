@@ -32,6 +32,16 @@ type Facts struct {
 	DaemonPeers          []clientnetbird.Peer
 }
 
+func FactsFromDaemon(roomSaved, membershipKnown bool, otherRoomPeerCount int, snapshot clientnetbird.Snapshot) Facts {
+	return Facts{
+		RoomSaved:          roomSaved,
+		ControlPlaneReady:  snapshot.ManagementConnected && snapshot.SignalConnected,
+		MembershipKnown:    membershipKnown,
+		OtherRoomPeerCount: otherRoomPeerCount,
+		DaemonPeers:        append([]clientnetbird.Peer(nil), snapshot.Peers...),
+	}
+}
+
 type Snapshot struct {
 	Revision uint64
 	State    State

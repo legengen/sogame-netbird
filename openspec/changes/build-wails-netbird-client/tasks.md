@@ -51,7 +51,7 @@
 - [x] 6.4 Implement Leave by deregistering the peer, removing only the managed profile, and clearing protected local room data
 - [x] 6.5 Implement Switch as a confirmed complete Leave followed by a new Create or Join flow
 - [x] 6.6 Implement five-second foreground and thirty-second tray Room API refresh with stale data markers
-- [ ] 6.7 Implement P2P-preferred and Relay-success presentation using daemon-reported path selection only
+- [x] 6.7 Implement P2P-preferred and Relay-success presentation using daemon-reported path selection only
 - [ ] 6.8 Add deterministic state-machine tests for empty rooms, peer appearance, P2P, Relay, outages, reconnect, leave, and conflicting stored state
 
 ## 7. Wails User Experience
