@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.1] - 2026-07-19
+
+### Fixed
+
+- Corrected Windows system-tray initialization and managed NetBird profile validation.
+- Added reproducible GitHub CI and tag-driven Windows packaging.
+
+### Distribution
+
+- Published as an unsigned Windows demo; SmartScreen warnings are expected.
+- The bundled official NetBird v0.74.7 MSI remains unchanged and signed by NetBird GmbH.
+
 ## [0.1.0] - 2026-07-19
 
 ### Added
