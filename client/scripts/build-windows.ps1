@@ -25,3 +25,11 @@ if (-not [string]::IsNullOrWhiteSpace($NetBirdMSI)) {
 }
 
 wails build -platform windows/amd64 -clean
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to build the Wails application (exit $LASTEXITCODE)."
+}
+
+go build -trimpath -o .\build\bin\sogame-helper.exe .\cmd\sogame-helper
+if ($LASTEXITCODE -ne 0) {
+    throw "Failed to build the elevated helper (exit $LASTEXITCODE)."
+}

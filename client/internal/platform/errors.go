@@ -11,4 +11,6 @@ var (
 	ErrServiceMissing     = errors.New("NetBird service is missing")
 	ErrServiceAccess      = errors.New("NetBird service status access denied")
 	ErrServiceUnavailable = errors.New("NetBird service is unavailable")
+	ErrElevationRequired  = errors.New("administrator elevation is required")
+	ErrUnsupportedAction  = errors.New("unsupported privileged action")
 )
