@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	clientnetbird "github.com/legengen/sogame-netbird/client/internal/netbird"
 	"github.com/legengen/sogame-netbird/client/internal/roomapi"
@@ -30,6 +31,12 @@ type Controller struct {
 type RoomSession interface {
 	Create(context.Context, string) (session.Snapshot, error)
 	Join(context.Context, string, string) (session.Snapshot, error)
+}
+
+type RoomViewSession interface {
+	RoomSession
+	View(context.Context) (session.RoomViewSnapshot, error)
+	RevealRoomCode(context.Context) (string, error)
 }
 
 func New(logger *slog.Logger) *Controller {
@@ -58,6 +65,7 @@ func (c *Controller) Startup(ctx context.Context) {
 	c.ctx = ctx
 	c.mu.Unlock()
 	c.logger.Info("application started")
+	go c.refreshRoomView(ctx)
 }
 
 func (c *Controller) Shutdown(context.Context) {
@@ -73,6 +81,25 @@ func (c *Controller) GetState() StateSnapshot {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.state
+}
+
+func (c *Controller) RevealRoomCode() RevealRoomCodeResult {
+	c.mu.RLock()
+	rooms := c.rooms
+	ctx := c.ctx
+	c.mu.RUnlock()
+	view, ok := rooms.(RoomViewSession)
+	if !ok {
+		return RevealRoomCodeResult{Error: publicError(errors.New("room session is unavailable"))}
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	roomCode, err := view.RevealRoomCode(ctx)
+	if err != nil {
+		return RevealRoomCodeResult{Error: publicError(err)}
+	}
+	return RevealRoomCodeResult{RoomCode: roomCode}
 }
 
 func (c *Controller) CreateRoom(request CreateRoomRequest) StateSnapshot {
@@ -126,6 +153,9 @@ func (c *Controller) runRoomCommand(command string, execute func(context.Context
 	c.mu.Unlock()
 
 	snapshot, err := execute(ctx)
+	if err == nil {
+		c.refreshRoomView(ctx)
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.state.BusyCommand = ""
@@ -140,6 +170,56 @@ func (c *Controller) runRoomCommand(command string, execute func(context.Context
 	c.state.ConnectedPath = PathType(snapshot.Path)
 	c.state.Error = nil
 	return c.state
+}
+
+func (c *Controller) refreshRoomView(ctx context.Context) {
+	c.mu.RLock()
+	rooms := c.rooms
+	c.mu.RUnlock()
+	viewSession, ok := rooms.(RoomViewSession)
+	if !ok {
+		return
+	}
+	view, err := viewSession.View(ctx)
+	if err != nil {
+		if errors.Is(err, session.ErrStoredStateConflict) || errors.Is(err, session.ErrRoomAlreadySaved) {
+			c.mu.Lock()
+			c.state.State = StateRecoverableError
+			c.state.Error = publicError(err)
+			c.mu.Unlock()
+		}
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.state.Revision = view.Session.Revision
+	c.state.State = ConnectionState(view.Session.State)
+	c.state.ConnectedPath = PathType(view.Session.Path)
+	c.state.RoomID = view.Metadata.RoomID
+	c.state.RoomCodeMasked = view.RoomCodeMasked
+	c.state.ManagementURL = view.Metadata.ManagementURL
+	c.state.ProfileID = view.Metadata.ProfileID
+	c.state.LocalNetBirdIP = view.LocalNetBirdIP
+	c.state.PeersStale = view.PeersStale
+	if view.LastPeerRefresh.IsZero() {
+		c.state.LastPeerRefreshAt = ""
+	} else {
+		c.state.LastPeerRefreshAt = view.LastPeerRefresh.UTC().Format(time.RFC3339)
+	}
+	c.state.Peers = make([]PeerSnapshot, 0, len(view.Peers))
+	for _, peer := range view.Peers {
+		path := PathNone
+		if peer.Connected {
+			path = PathType(view.Session.Path)
+		}
+		c.state.Peers = append(c.state.Peers, PeerSnapshot{
+			ID:        peer.ID,
+			Name:      peer.Name,
+			NetBirdIP: peer.NetBirdIP,
+			Connected: peer.Connected,
+			Path:      path,
+		})
+	}
 }
 
 func publicError(err error) *PublicError {

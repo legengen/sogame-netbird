@@ -6,9 +6,11 @@ import (
 	"io"
 	"log/slog"
 	"testing"
+	"time"
 
 	clientnetbird "github.com/legengen/sogame-netbird/client/internal/netbird"
 	"github.com/legengen/sogame-netbird/client/internal/roomapi"
+	"github.com/legengen/sogame-netbird/client/internal/securestore"
 	"github.com/legengen/sogame-netbird/client/internal/session"
 )
 
@@ -18,6 +20,8 @@ type fakeRoomSession struct {
 	joinName   string
 	snapshot   session.Snapshot
 	err        error
+	view       session.RoomViewSnapshot
+	roomCode   string
 }
 
 func (f *fakeRoomSession) Create(_ context.Context, displayName string) (session.Snapshot, error) {
@@ -29,6 +33,14 @@ func (f *fakeRoomSession) Join(_ context.Context, roomCode, displayName string) 
 	f.joinCode = roomCode
 	f.joinName = displayName
 	return f.snapshot, f.err
+}
+
+func (f *fakeRoomSession) View(context.Context) (session.RoomViewSnapshot, error) {
+	return f.view, nil
+}
+
+func (f *fakeRoomSession) RevealRoomCode(context.Context) (string, error) {
+	return f.roomCode, nil
 }
 
 func testController(rooms RoomSession) *Controller {
@@ -76,5 +88,46 @@ func TestRoomWorkflowWithoutRuntimeReportsServiceUnavailable(t *testing.T) {
 	state := testController(nil).CreateRoom(CreateRoomRequest{DisplayName: "gaming-pc"})
 	if state.Error == nil || state.Error.Code != ErrServiceUnavailable || !state.Error.Retryable {
 		t.Fatalf("state=%+v", state)
+	}
+}
+
+func TestControllerPublishesActiveRoomViewAndExplicitReveal(t *testing.T) {
+	rooms := &fakeRoomSession{
+		view: session.RoomViewSnapshot{
+			Session:         session.Snapshot{Revision: 4, State: session.StateConnectedP2P, Path: clientnetbird.PathP2P},
+			Metadata:        testRoomMetadata(),
+			RoomCodeMasked:  "****-****-CCCC",
+			LocalNetBirdIP:  "100.115.10.21",
+			Peers:           []roomapi.Peer{{ID: "peer-2", Name: "friend", NetBirdIP: "100.115.10.22", Connected: true}},
+			LastPeerRefresh: time.Date(2026, 7, 19, 12, 0, 0, 0, time.UTC),
+		},
+		roomCode: "AAAA-BBBB-CCCC",
+	}
+	controller := testController(rooms)
+	controller.refreshRoomView(context.Background())
+
+	state := controller.GetState()
+	if state.RoomCodeMasked != "****-****-CCCC" || state.LocalNetBirdIP != "100.115.10.21" || state.ConnectedPath != PathP2P {
+		t.Fatalf("state=%+v", state)
+	}
+	if len(state.Peers) != 1 || state.Peers[0].Path != PathP2P || state.Peers[0].NetBirdIP != "100.115.10.22" {
+		t.Fatalf("peers=%+v", state.Peers)
+	}
+	if stateBytes, err := state.MarshalJSON(); err != nil || string(stateBytes) == "" || string(stateBytes) == "AAAA-BBBB-CCCC" {
+		t.Fatalf("state JSON=%s error=%v", stateBytes, err)
+	}
+	result := controller.RevealRoomCode()
+	if result.Error != nil || result.RoomCode != "AAAA-BBBB-CCCC" {
+		t.Fatalf("reveal=%+v", result)
+	}
+}
+
+func testRoomMetadata() securestore.RoomMetadata {
+	return securestore.RoomMetadata{
+		Version:       securestore.CurrentMetadataVersion,
+		RoomID:        "room-1",
+		ManagementURL: "https://legengen.top",
+		ProfileID:     "profile-1",
+		CreatedAt:     time.Date(2026, 7, 19, 12, 0, 0, 0, time.UTC),
 	}
 }

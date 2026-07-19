@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createRoom, joinRoom } from './bridge'
+import { createRoom, joinRoom, revealRoomCode } from './bridge'
 import type { StateSnapshot } from './types'
 
 const connected: StateSnapshot = {
@@ -23,12 +23,15 @@ describe('Wails room workflow bridge', () => {
   it('sends create and join command DTOs to the backend', async () => {
     const create = vi.fn().mockResolvedValue(connected)
     const join = vi.fn().mockResolvedValue(connected)
-    vi.stubGlobal('window', { go: { app: { Controller: { CreateRoom: create, JoinRoom: join } } } })
+    const reveal = vi.fn().mockResolvedValue({ roomCode: 'AAAA-BBBB-CCCC' })
+    vi.stubGlobal('window', { go: { app: { Controller: { CreateRoom: create, JoinRoom: join, RevealRoomCode: reveal } } } })
 
     await expect(createRoom({ displayName: '' })).resolves.toEqual(connected)
     await expect(joinRoom({ roomCode: '7X4K-329B-YY95', displayName: '' })).resolves.toEqual(connected)
     expect(create).toHaveBeenCalledWith({ displayName: '' })
     expect(join).toHaveBeenCalledWith({ roomCode: '7X4K-329B-YY95', displayName: '' })
+    await expect(revealRoomCode()).resolves.toEqual({ roomCode: 'AAAA-BBBB-CCCC' })
+    expect(reveal).toHaveBeenCalledOnce()
   })
 
   it('returns a recoverable state when Wails bindings are unavailable', async () => {

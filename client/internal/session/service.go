@@ -61,12 +61,17 @@ type Service struct {
 	codes    RoomCodeStorage
 	machine  *Machine
 	monitor  *clientnetbird.RecoveryMonitor
+	peers    *PeerRefresher
 	now      func() time.Time
 	mu       sync.Mutex
 	busy     bool
 }
 
 func NewService(rooms RoomAPI, netbird clientnetbird.Adapter, metadata MetadataStorage, codes RoomCodeStorage) *Service {
+	var peers *PeerRefresher
+	if api, ok := rooms.(PeerAPI); ok {
+		peers = NewPeerRefresher(api, codes)
+	}
 	return &Service{
 		rooms:    rooms,
 		netbird:  netbird,
@@ -74,8 +79,68 @@ func NewService(rooms RoomAPI, netbird clientnetbird.Adapter, metadata MetadataS
 		codes:    codes,
 		machine:  NewMachine(),
 		monitor:  clientnetbird.NewRecoveryMonitor(netbird),
+		peers:    peers,
 		now:      time.Now,
 	}
+}
+
+type RoomViewSnapshot struct {
+	Session         Snapshot
+	Metadata        securestore.RoomMetadata
+	RoomCodeMasked  string
+	LocalNetBirdIP  string
+	Peers           []roomapi.Peer
+	PeersStale      bool
+	LastPeerRefresh time.Time
+}
+
+func (s *Service) View(ctx context.Context) (RoomViewSnapshot, error) {
+	metadata, err := s.loadSavedRoom()
+	if err != nil {
+		return RoomViewSnapshot{}, err
+	}
+	code, err := s.codes.Load()
+	if err != nil {
+		return RoomViewSnapshot{}, ErrStoredStateConflict
+	}
+	masked := maskRoomCode(code)
+	clearBytes(code)
+	status, err := s.netbird.Status(ctx)
+	if err != nil {
+		return RoomViewSnapshot{}, err
+	}
+	facts := Facts{
+		RoomSaved:          true,
+		ControlPlaneReady:  status.ManagementConnected && status.SignalConnected,
+		MembershipKnown:    true,
+		DaemonPeers:        status.Peers,
+		OtherRoomPeerCount: len(status.Peers),
+	}
+	view := RoomViewSnapshot{
+		Session:        s.machine.Apply(facts),
+		Metadata:       metadata,
+		RoomCodeMasked: masked,
+		LocalNetBirdIP: status.LocalNetBirdIP,
+	}
+	if s.peers != nil {
+		peerSnapshot, _ := s.peers.Refresh(ctx)
+		view.Peers = peerSnapshot.Peers
+		view.PeersStale = peerSnapshot.Stale
+		view.LastPeerRefresh = peerSnapshot.LastRefreshAt
+	}
+	return view, nil
+}
+
+func (s *Service) RevealRoomCode(context.Context) (string, error) {
+	if _, err := s.loadSavedRoom(); err != nil {
+		return "", err
+	}
+	code, err := s.codes.Load()
+	if err != nil {
+		return "", ErrStoredStateConflict
+	}
+	defer clearBytes(code)
+	return string(code), nil
 }
 
 func (s *Service) Disconnect(ctx context.Context) (Snapshot, error) {
@@ -389,4 +454,18 @@ func clearBytes(value []byte) {
 	for index := range value {
 		value[index] = 0
 	}
+}
+
+func maskRoomCode(value []byte) string {
+	if len(value) < 4 {
+		return ""
+	}
+	masked := make([]byte, len(value))
+	copy(masked, value)
+	for index := 0; index < len(masked)-4; index++ {
+		if masked[index] != '-' {
+			masked[index] = '*'
+		}
+	}
+	return string(masked)
 }

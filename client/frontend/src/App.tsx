@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react'
 import {
-  CircleHelp,
-  Gamepad2,
-  LogIn,
-  Plus,
+	Check,
+	CircleHelp,
+	Copy,
+	Eye,
+	Gamepad2,
+	LogIn,
+	Plus,
+	RefreshCw,
   Server,
   Settings,
   ShieldCheck,
   Wifi,
 } from 'lucide-react'
-import { createRoom, getState, joinRoom } from './bridge'
+import { createRoom, getState, joinRoom, revealRoomCode } from './bridge'
 import { isValidRoomCode, normalizeRoomCode } from './roomCode'
 import type { StateSnapshot } from './types'
 
@@ -31,6 +35,8 @@ function App() {
   const [mode, setMode] = useState<EntryMode>('create')
   const [roomCode, setRoomCode] = useState('')
   const [snapshot, setSnapshot] = useState<StateSnapshot | null>(null)
+  const [revealedRoomCode, setRevealedRoomCode] = useState('')
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
 
   useEffect(() => {
     void getState().then(setSnapshot)
@@ -38,6 +44,30 @@ function App() {
 
   const state = snapshot?.state ?? 'NoRoom'
   const busy = Boolean(snapshot?.busyCommand)
+
+  async function showRoomCode() {
+    const result = await revealRoomCode()
+    if (result.roomCode) {
+      setRevealedRoomCode(result.roomCode)
+      setCopyState('idle')
+      window.setTimeout(() => setRevealedRoomCode(''), 20_000)
+    }
+  }
+
+  async function copyRoomCode() {
+    const code = revealedRoomCode
+    if (!code) {
+      await showRoomCode()
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopyState('copied')
+      window.setTimeout(() => setCopyState('idle'), 2_000)
+    } catch {
+      setCopyState('failed')
+    }
+  }
 
   async function submitRoom() {
     if (busy || (mode === 'join' && !isValidRoomCode(roomCode))) {
@@ -110,6 +140,72 @@ function App() {
           </button>
         </header>
 
+        {snapshot?.roomId ? (
+          <section className="active-panel" aria-labelledby="room-title">
+            <div className="room-heading">
+              <div>
+                <div className="eyebrow">当前房间</div>
+                <h2 id="room-title">{snapshot.roomId}</h2>
+              </div>
+              <span className={`path-pill path-${snapshot.connectedPath}`}>
+                {snapshot.connectedPath === 'p2p' ? 'P2P' : snapshot.connectedPath === 'relay' ? 'Relay' : '未建立通道'}
+              </span>
+            </div>
+
+            <div className="room-code-row">
+              <div>
+                <span className="detail-label">房间码</span>
+                <code>{revealedRoomCode || snapshot.roomCodeMasked || '********-****'}</code>
+              </div>
+              <div className="room-code-actions">
+                <button className="icon-button" type="button" title="显示房间码" aria-label="显示房间码" onClick={() => void showRoomCode()}>
+                  <Eye size={17} />
+                </button>
+                <button className="icon-button" type="button" title="复制房间码" aria-label="复制房间码" onClick={() => void copyRoomCode()}>
+                  {copyState === 'copied' ? <Check size={17} /> : <Copy size={17} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="detail-grid">
+              <div className="detail-block">
+                <span className="detail-label">本机 NetBird IP</span>
+                <strong>{snapshot.localNetbirdIp || '等待分配'}</strong>
+              </div>
+              <div className="detail-block">
+                <span className="detail-label">连接状态</span>
+                <strong>{stateLabel[state]}</strong>
+              </div>
+            </div>
+
+            <div className="peer-section">
+              <div className="section-heading">
+                <div>
+                  <h3>房间成员</h3>
+                  {snapshot.peersStale && <span className="stale-label"><RefreshCw size={13} />数据可能已过期</span>}
+                </div>
+                {snapshot.lastPeerRefreshAt && <time>{new Date(snapshot.lastPeerRefreshAt).toLocaleTimeString()}</time>}
+              </div>
+              {snapshot.peers.length === 0 ? (
+                <div className="empty-peers">等待其他玩家加入房间</div>
+              ) : (
+                <div className="peer-list">
+                  {snapshot.peers.map((peer) => (
+                    <div className="peer-row" key={peer.id}>
+                      <span className={`peer-dot ${peer.connected ? 'online' : ''}`} />
+                      <div className="peer-copy">
+                        <strong>{peer.name || '未命名设备'}</strong>
+                        <span>{peer.netbirdIp}</span>
+                      </div>
+                      <span className="peer-path">{peer.path === 'p2p' ? 'P2P' : peer.path === 'relay' ? 'Relay' : peer.connected ? '已连接' : '离线'}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {copyState === 'failed' && <div className="inline-error" role="alert">无法访问系统剪贴板，请使用显示按钮查看房间码。</div>}
+          </section>
+        ) : (
         <section className="entry-panel" aria-labelledby="entry-title">
           <div className="secure-note">
             <ShieldCheck size={17} />
@@ -168,6 +264,7 @@ function App() {
             )}
           </div>
         </section>
+        )}
       </main>
     </div>
   )

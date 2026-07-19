@@ -57,3 +57,8 @@ export interface JoinRoomRequest {
   roomCode: string
   displayName: string
 }
+
+export interface RevealRoomCodeResult {
+  roomCode?: string
+  error?: PublicError
+}

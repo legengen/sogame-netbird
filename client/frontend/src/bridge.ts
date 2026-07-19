@@ -1,4 +1,4 @@
-import type { CreateRoomRequest, JoinRoomRequest, StateSnapshot } from './types'
+import type { CreateRoomRequest, JoinRoomRequest, RevealRoomCodeResult, StateSnapshot } from './types'
 
 declare global {
   interface Window {
@@ -8,6 +8,7 @@ declare global {
           GetState: () => Promise<StateSnapshot>
           CreateRoom: (request: CreateRoomRequest) => Promise<StateSnapshot>
           JoinRoom: (request: JoinRoomRequest) => Promise<StateSnapshot>
+          RevealRoomCode: () => Promise<RevealRoomCodeResult>
         }
       }
     }
@@ -51,6 +52,21 @@ export async function joinRoom(request: JoinRoomRequest): Promise<StateSnapshot>
     return unavailableState('join')
   }
   return binding(request)
+}
+
+export async function revealRoomCode(): Promise<RevealRoomCodeResult> {
+  const binding = window.go?.app?.Controller?.RevealRoomCode
+  if (!binding) {
+    return {
+      error: {
+        code: 'NETBIRD_SERVICE_UNAVAILABLE',
+        message: '客户端后端尚未连接',
+        retryable: true,
+        action: '重新启动客户端后重试',
+      },
+    }
+  }
+  return binding()
 }
 
 function unavailableState(command: string): StateSnapshot {
