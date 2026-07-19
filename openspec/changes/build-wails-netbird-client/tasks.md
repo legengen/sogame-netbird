@@ -30,7 +30,7 @@
 - [x] 4.3 Implement exact v0.74.7 daemon version enforcement and typed mismatch repair results
 - [x] 4.4 Implement managed `sogame-room` profile creation, selection, validation, and removal without changing unrelated profiles
 - [x] 4.5 Implement enrollment, connect, disconnect, deregistration, status, and local event delivery over RPC
-- [ ] 4.6 Implement bounded RPC reconnection and polling fallback for daemon restart, sleep resume, and network change
+- [x] 4.6 Implement bounded RPC reconnection and polling fallback for daemon restart, sleep resume, and network change
 - [ ] 4.7 Add adapter contract tests against the bundled v0.74.7 daemon plus unit tests with a fake adapter
 
 ## 5. Room API and Secure Storage
