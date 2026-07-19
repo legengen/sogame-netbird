@@ -20,7 +20,7 @@
 - [x] 3.2 Implement Windows publisher-signature and digest verification before any install or repair action
 - [x] 3.3 Implement unprivileged service discovery, version inspection, and health classification
 - [x] 3.4 Implement the narrowly scoped elevated install and repair helper without elevating the Wails GUI
-- [ ] 3.5 Implement explicit service removal support for the uninstaller while preserving the user's choice to retain the official daemon
+- [x] 3.5 Implement explicit service removal support for the uninstaller while preserving the user's choice to retain the official daemon
 - [ ] 3.6 Add tests for valid, missing, mismatched, unsigned, and tampered NetBird artifacts and services
 
 ## 4. Local RPC Adapter

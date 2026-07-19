@@ -14,13 +14,13 @@ import (
 )
 
 func main() {
-	actionFlag := flag.String("action", "", "install or repair")
+	actionFlag := flag.String("action", "", "install, repair, or remove")
 	artifactPath := flag.String("artifact", "", "absolute path to the verified official NetBird MSI")
 	logPath := flag.String("log", "", "absolute path to the local MSI log")
 	flag.Parse()
 
 	action := platform.MSIAction(*actionFlag)
-	if action != platform.MSIInstall && action != platform.MSIRepair {
+	if action != platform.MSIInstall && action != platform.MSIRepair && action != platform.MSIRemove {
 		fail(platform.ErrUnsupportedAction)
 	}
 	metadata, err := releasebuild.Load()
@@ -29,12 +29,19 @@ func main() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	installer := platform.NewPrivilegedInstaller(
-		platform.NewArtifactVerifier(platform.WindowsSignatureVerifier{}),
-		platform.NewWindowsMSIRunner(),
-	)
-	if err := installer.Execute(ctx, action, *artifactPath, *logPath, metadata.WindowsX64); err != nil {
-		fail(err)
+	runner := platform.NewWindowsMSIRunner()
+	if action == platform.MSIRemove {
+		if err := platform.NewDaemonRemover(runner).Remove(ctx, true, metadata.WindowsX64.Install.ProductCode, *logPath); err != nil {
+			fail(err)
+		}
+	} else {
+		installer := platform.NewPrivilegedInstaller(
+			platform.NewArtifactVerifier(platform.WindowsSignatureVerifier{}),
+			runner,
+		)
+		if err := installer.Execute(ctx, action, *artifactPath, *logPath, metadata.WindowsX64); err != nil {
+			fail(err)
+		}
 	}
 }
 
