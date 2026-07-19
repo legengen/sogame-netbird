@@ -61,7 +61,7 @@
 - [x] 7.3 Add Connect, Disconnect, Leave, and confirmed Switch interactions with stable disabled and progress states
 - [x] 7.4 Add service missing, service repair, version mismatch, Room API error, and daemon recovery views
 - [x] 7.5 Add system tray behavior so closing the window retains connectivity and exiting the GUI does not mutate daemon state
-- [ ] 7.6 Verify all text fits and controls remain usable across supported Windows scaling settings and compact desktop sizes
+- [x] 7.6 Verify all text fits and controls remain usable across supported Windows scaling settings and compact desktop sizes
 
 ## 8. Diagnostics and Privacy
 
