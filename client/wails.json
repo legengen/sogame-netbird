@@ -9,5 +9,12 @@
   "author": {
     "name": "legengen"
   },
+  "info": {
+    "companyName": "legengen",
+    "productName": "Sogame",
+    "productVersion": "0.1.0",
+    "copyright": "Copyright (c) 2026 legengen",
+    "comments": "Official NetBird v0.74.7 orchestration client"
+  },
   "platforms": ["windows/amd64"]
 }

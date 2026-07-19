@@ -1,4 +1,5 @@
 /build/bin/
+/build/release/
 /build/appicon.png
 /frontend/dist/*
 !/frontend/dist/.gitkeep

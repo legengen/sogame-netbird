@@ -1,15 +1,16 @@
 {
   "fixed": {
-    "file_version": "{{.Info.ProductVersion}}"
+    "file_version": "{{.Info.ProductVersion}}",
+    "product_version": "{{.Info.ProductVersion}}"
   },
   "info": {
-    "0000": {
+    "0409": {
       "ProductVersion": "{{.Info.ProductVersion}}",
       "CompanyName": "{{.Info.CompanyName}}",
       "FileDescription": "{{.Info.ProductName}}",
       "LegalCopyright": "{{.Info.Copyright}}",
       "ProductName": "{{.Info.ProductName}}",
-      "Comments": "Official NetBird v0.74.7 orchestration client"
+      "Comments": "{{.Info.Comments}}"
     }
   }
 }
