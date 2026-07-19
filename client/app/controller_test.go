@@ -5,9 +5,11 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/legengen/sogame-netbird/client/internal/diagnostics"
 	clientnetbird "github.com/legengen/sogame-netbird/client/internal/netbird"
 	"github.com/legengen/sogame-netbird/client/internal/platform"
 	"github.com/legengen/sogame-netbird/client/internal/roomapi"
@@ -206,6 +208,22 @@ func TestControllerShutdownDoesNotMutateRoomSession(t *testing.T) {
 	}
 	if len(rooms.calls) != 0 {
 		t.Fatalf("shutdown mutated room session: %v", rooms.calls)
+	}
+}
+
+func TestControllerExportsDiagnosticsToConfiguredLocalWriter(t *testing.T) {
+	writer, err := diagnostics.NewWriter(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	controller := testController(nil)
+	controller.ConfigureDiagnostics(writer)
+	result := controller.ExportDiagnostics()
+	if result.Error != nil || result.Path == "" {
+		t.Fatalf("result=%+v", result)
+	}
+	if _, err := os.Stat(result.Path); err != nil {
+		t.Fatalf("diagnostic path=%q error=%v", result.Path, err)
 	}
 }
 

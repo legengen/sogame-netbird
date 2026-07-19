@@ -3,6 +3,7 @@ import {
 	Check,
 	CircleHelp,
 	Copy,
+	Download,
 	Eye,
 	Gamepad2,
 	LogIn,
@@ -13,7 +14,7 @@ import {
   ShieldCheck,
   Wifi,
 } from 'lucide-react'
-import { connectRoom, createRoom, disconnectRoom, getState, joinRoom, leaveRoom, repairService, revealRoomCode, switchRoom } from './bridge'
+import { connectRoom, createRoom, disconnectRoom, exportDiagnostics, getState, joinRoom, leaveRoom, repairService, revealRoomCode, switchRoom } from './bridge'
 import { isValidRoomCode, normalizeRoomCode } from './roomCode'
 import type { StateSnapshot } from './types'
 
@@ -41,6 +42,7 @@ function App() {
   const [switchMode, setSwitchMode] = useState<EntryMode>('join')
   const [switchCode, setSwitchCode] = useState('')
   const [switchConfirmed, setSwitchConfirmed] = useState(false)
+  const [diagnosticMessage, setDiagnosticMessage] = useState('')
 
   useEffect(() => {
     void getState().then(setSnapshot)
@@ -130,6 +132,13 @@ function App() {
     if (busy) return
     setSnapshot((current) => current ? { ...current, busyCommand: 'repair', error: undefined } : current)
     setSnapshot(await repairService())
+  }
+
+  async function runDiagnostics() {
+    if (busy) return
+    const result = await exportDiagnostics()
+    setDiagnosticMessage(result.path ? '诊断包已保存到本机' : result.error?.message || '诊断导出失败')
+    window.setTimeout(() => setDiagnosticMessage(''), 4_000)
   }
 
   return (
@@ -259,6 +268,7 @@ function App() {
               <button type="button" className="secondary-action" disabled={busy} onClick={() => void runLifecycle('disconnect')}>断开</button>
               <button type="button" className="secondary-action" disabled={busy} onClick={() => void runLifecycle('leave')}>离开</button>
               <button type="button" className="secondary-action" disabled={busy} onClick={() => setSwitchOpen((open) => !open)}>切换房间</button>
+              <button type="button" className="secondary-action" disabled={busy} onClick={() => void runDiagnostics()}><Download size={15} />导出诊断</button>
             </div>
             {switchOpen && (
               <div className="switch-panel">
@@ -274,6 +284,7 @@ function App() {
               </div>
             )}
             {copyState === 'failed' && <div className="inline-error" role="alert">无法访问系统剪贴板，请使用显示按钮查看房间码。</div>}
+            {diagnosticMessage && <div className="inline-note" role="status">{diagnosticMessage}</div>}
           </section>
         ) : (
         <section className="entry-panel" aria-labelledby="entry-title">

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	releasebuild "github.com/legengen/sogame-netbird/client/build"
+	"github.com/legengen/sogame-netbird/client/internal/diagnostics"
 	clientnetbird "github.com/legengen/sogame-netbird/client/internal/netbird"
 	"github.com/legengen/sogame-netbird/client/internal/platform"
 	"github.com/legengen/sogame-netbird/client/internal/roomapi"
@@ -42,6 +43,9 @@ func NewWindowsController(logger *slog.Logger) *Controller {
 	metadata, err := securestore.NewMetadataStore(metadataPath)
 	if err != nil {
 		return controllerWithStartupError(controller, err)
+	}
+	if diagnosticWriter, writerErr := diagnostics.NewWriter(filepath.Join(filepath.Dir(metadataPath), "diagnostics")); writerErr == nil {
+		controller.ConfigureDiagnostics(diagnosticWriter)
 	}
 	roomCodePath, err := securestore.DefaultRoomCodePath()
 	if err != nil {

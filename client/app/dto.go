@@ -97,7 +97,8 @@ type SwitchRoomRequest struct {
 }
 
 type DiagnosticResult struct {
-	Path string `json:"path"`
+	Path  string       `json:"path,omitempty"`
+	Error *PublicError `json:"error,omitempty"`
 }
 
 type RevealRoomCodeResult struct {

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/legengen/sogame-netbird/client/internal/diagnostics"
 	clientnetbird "github.com/legengen/sogame-netbird/client/internal/netbird"
 	"github.com/legengen/sogame-netbird/client/internal/platform"
 	"github.com/legengen/sogame-netbird/client/internal/roomapi"
@@ -19,14 +20,15 @@ import (
 const expectedNetBirdVersion = "0.74.7"
 
 type Controller struct {
-	mu      sync.RWMutex
-	ctx     context.Context
-	logger  *slog.Logger
-	state   StateSnapshot
-	rooms   RoomSession
-	close   func() error
-	service ServiceChecker
-	repair  func(context.Context) error
+	mu          sync.RWMutex
+	ctx         context.Context
+	logger      *slog.Logger
+	state       StateSnapshot
+	rooms       RoomSession
+	close       func() error
+	service     ServiceChecker
+	repair      func(context.Context) error
+	diagnostics *diagnostics.Writer
 }
 
 type ServiceChecker interface {
@@ -79,6 +81,12 @@ func (c *Controller) ConfigureService(checker ServiceChecker, repair func(contex
 	c.mu.Lock()
 	c.service = checker
 	c.repair = repair
+	c.mu.Unlock()
+}
+
+func (c *Controller) ConfigureDiagnostics(writer *diagnostics.Writer) {
+	c.mu.Lock()
+	c.diagnostics = writer
 	c.mu.Unlock()
 }
 
@@ -174,6 +182,40 @@ func (c *Controller) GetState() StateSnapshot {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.state
+}
+
+func (c *Controller) ExportDiagnostics() DiagnosticResult {
+	c.mu.RLock()
+	writer := c.diagnostics
+	ctx := c.ctx
+	c.mu.RUnlock()
+	if writer == nil {
+		return DiagnosticResult{Error: publicError(errors.New("diagnostics are unavailable"))}
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	path, err := writer.Write(ctx, controllerDiagnosticSource{controller: c})
+	if err != nil {
+		return DiagnosticResult{Error: publicError(err)}
+	}
+	return DiagnosticResult{Path: path}
+}
+
+type controllerDiagnosticSource struct{ controller *Controller }
+
+func (s controllerDiagnosticSource) Collect(ctx context.Context) (diagnostics.Report, error) {
+	state := s.controller.GetState()
+	netbirdReport := any(state)
+	s.controller.mu.RLock()
+	rooms := s.controller.rooms
+	s.controller.mu.RUnlock()
+	if viewSession, ok := rooms.(RoomViewSession); ok {
+		if view, err := viewSession.View(ctx); err == nil {
+			netbirdReport = view
+		}
+	}
+	return diagnostics.Report{Application: state, NetBird: netbirdReport}, nil
 }
 
 func (c *Controller) RevealRoomCode() RevealRoomCodeResult {

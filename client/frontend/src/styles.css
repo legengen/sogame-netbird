@@ -623,6 +623,16 @@ h1 {
   color: #96514d;
 }
 
+.inline-note {
+  margin-top: 12px;
+  padding: 10px 12px;
+  color: #356147;
+  background: #eff9f1;
+  border: 1px solid #cfe7d4;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
 @media (max-width: 760px) {
   .app-shell {
     grid-template-columns: 176px minmax(0, 1fr);

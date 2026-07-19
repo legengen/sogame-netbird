@@ -14,6 +14,7 @@ declare global {
           LeaveRoom: () => Promise<StateSnapshot>
           SwitchRoom: (request: SwitchRoomRequest) => Promise<StateSnapshot>
           RepairService: () => Promise<StateSnapshot>
+          ExportDiagnostics: () => Promise<{ path?: string; error?: StateSnapshot['error'] }>
         }
       }
     }
@@ -98,6 +99,14 @@ export async function repairService(): Promise<StateSnapshot> {
   const binding = window.go?.app?.Controller?.RepairService
   if (!binding) {
     return unavailableState('repair')
+  }
+  return binding()
+}
+
+export async function exportDiagnostics(): Promise<{ path?: string; error?: StateSnapshot['error'] }> {
+  const binding = window.go?.app?.Controller?.ExportDiagnostics
+  if (!binding) {
+    return { error: { code: 'INTERNAL', message: '诊断功能不可用', retryable: true } }
   }
   return binding()
 }

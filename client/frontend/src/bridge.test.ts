@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createRoom, joinRoom, repairService, revealRoomCode } from './bridge'
+import { createRoom, exportDiagnostics, joinRoom, repairService, revealRoomCode } from './bridge'
 import type { StateSnapshot } from './types'
 
 const connected: StateSnapshot = {
@@ -66,5 +66,12 @@ describe('Wails room workflow bridge', () => {
     vi.stubGlobal('window', { go: { app: { Controller: { RepairService: repair } } } })
     await expect(repairService()).resolves.toEqual(connected)
     expect(repair).toHaveBeenCalledOnce()
+  })
+
+  it('routes local diagnostic export without an upload fallback', async () => {
+    const exportBundle = vi.fn().mockResolvedValue({ path: 'C:/Users/alice/AppData/Local/Sogame/diagnostics/report.zip' })
+    vi.stubGlobal('window', { go: { app: { Controller: { ExportDiagnostics: exportBundle } } } })
+    await expect(exportDiagnostics()).resolves.toEqual({ path: 'C:/Users/alice/AppData/Local/Sogame/diagnostics/report.zip' })
+    expect(exportBundle).toHaveBeenCalledOnce()
   })
 })
