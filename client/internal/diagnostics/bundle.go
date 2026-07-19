@@ -120,6 +120,47 @@ func (w *Writer) Write(ctx context.Context, source Source) (string, error) {
 	return path, nil
 }
 
+func (w *Writer) WriteLocalCrash(payload []byte) (string, error) {
+	if len(payload) == 0 {
+		return "", errors.New("crash report is empty")
+	}
+	if len(payload) > maxReportBytes {
+		return "", errors.New("crash report exceeds size limit")
+	}
+	if err := os.MkdirAll(w.Directory, 0o700); err != nil {
+		return "", fmt.Errorf("create crash report directory: %w", err)
+	}
+	name := "crash-" + w.now().UTC().Format("20060102-150405.000000000") + ".log"
+	temporary, err := os.CreateTemp(w.Directory, ".crash-*.tmp")
+	if err != nil {
+		return "", fmt.Errorf("create local crash report: %w", err)
+	}
+	temporaryPath := temporary.Name()
+	keepTemporary := true
+	defer func() {
+		_ = temporary.Close()
+		if keepTemporary {
+			_ = os.Remove(temporaryPath)
+		}
+	}()
+	clean := []byte(observability.Anonymize(string(payload)))
+	if _, err := temporary.Write(clean); err != nil {
+		return "", fmt.Errorf("write local crash report: %w", err)
+	}
+	if err := temporary.Sync(); err != nil {
+		return "", fmt.Errorf("flush local crash report: %w", err)
+	}
+	if err := temporary.Close(); err != nil {
+		return "", fmt.Errorf("close local crash report: %w", err)
+	}
+	path := filepath.Join(w.Directory, name)
+	if err := os.Rename(temporaryPath, path); err != nil {
+		return "", fmt.Errorf("publish local crash report: %w", err)
+	}
+	keepTemporary = false
+	return path, nil
+}
+
 func boundedJSON(value any) ([]byte, error) {
 	payload, err := json.Marshal(value)
 	if err != nil {

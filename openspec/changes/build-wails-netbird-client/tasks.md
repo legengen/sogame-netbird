@@ -67,7 +67,7 @@
 
 - [x] 8.1 Implement local anonymized application and NetBird diagnostic bundle generation
 - [x] 8.2 Redact IP addresses, hostnames, peer identifiers, Room Codes, Setup Keys, authorization values, and private key material from exports
-- [ ] 8.3 Ensure crash reports and logs remain local and add no automatic telemetry or upload path
+- [x] 8.3 Ensure crash reports and logs remain local and add no automatic telemetry or upload path
 - [ ] 8.4 Add adversarial tests with secrets embedded in upstream errors, RPC messages, and log fields
 
 ## 9. Packaging and End-to-End Verification
