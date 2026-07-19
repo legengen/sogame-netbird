@@ -45,7 +45,7 @@
 
 ## 6. Single-Room Session State Machine
 
-- [ ] 6.1 Implement the normalized NoRoom, Enrolling, ControlPlaneConnected, WaitingForPeer, ConnectingPeer, ConnectedP2P, ConnectedRelay, Reconnecting, and RecoverableError states
+- [x] 6.1 Implement the normalized NoRoom, Enrolling, ControlPlaneConnected, WaitingForPeer, ConnectingPeer, ConnectedP2P, ConnectedRelay, Reconnecting, and RecoverableError states
 - [ ] 6.2 Implement Create and Join transactions with compensation for partial local enrollment
 - [ ] 6.3 Implement Disconnect and Reconnect while preserving the existing daemon peer identity
 - [ ] 6.4 Implement Leave by deregistering the peer, removing only the managed profile, and clearing protected local room data
