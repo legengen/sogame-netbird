@@ -41,7 +41,7 @@
 - [x] 5.4 Implement versioned atomic storage for non-secret single-room metadata
 - [x] 5.5 Implement Windows user-bound Room Code protection with DPAPI or Credential Manager
 - [x] 5.6 Implement enrollment-scoped Setup Key handling that never enters frontend DTOs, persistence, logs, errors, or diagnostics
-- [ ] 5.7 Add tests proving Setup Key and plaintext Room Code absence from files, logs, Wails events, errors, and diagnostic fixtures
+- [x] 5.7 Add tests proving Setup Key and plaintext Room Code absence from files, logs, Wails events, errors, and diagnostic fixtures
 
 ## 6. Single-Room Session State Machine
 

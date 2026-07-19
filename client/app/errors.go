@@ -1,5 +1,11 @@
 package app
 
+import (
+	"encoding/json"
+
+	"github.com/legengen/sogame-netbird/client/internal/observability"
+)
+
 type ErrorCode string
 
 const (
@@ -29,4 +35,15 @@ func (e *PublicError) Error() string {
 		return ""
 	}
 	return string(e.Code)
+}
+
+func (e *PublicError) MarshalJSON() ([]byte, error) {
+	if e == nil {
+		return []byte("null"), nil
+	}
+	type publicErrorJSON PublicError
+	clean := publicErrorJSON(*e)
+	clean.Message = observability.Redact(clean.Message)
+	clean.Action = observability.Redact(clean.Action)
+	return json.Marshal(clean)
 }

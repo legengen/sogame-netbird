@@ -1,5 +1,11 @@
 package app
 
+import (
+	"encoding/json"
+
+	"github.com/legengen/sogame-netbird/client/internal/observability"
+)
+
 type ConnectionState string
 
 const (
@@ -53,6 +59,25 @@ type StateSnapshot struct {
 	Service           ServiceSnapshot `json:"service"`
 	Error             *PublicError    `json:"error,omitempty"`
 	BusyCommand       string          `json:"busyCommand,omitempty"`
+}
+
+func (s StateSnapshot) MarshalJSON() ([]byte, error) {
+	type stateSnapshotJSON StateSnapshot
+	clean := s
+	clean.RoomID = observability.Redact(clean.RoomID)
+	clean.RoomCodeMasked = observability.Redact(clean.RoomCodeMasked)
+	clean.ManagementURL = observability.Redact(clean.ManagementURL)
+	clean.LocalNetBirdIP = observability.Redact(clean.LocalNetBirdIP)
+	clean.ProfileID = observability.Redact(clean.ProfileID)
+	clean.LastPeerRefreshAt = observability.Redact(clean.LastPeerRefreshAt)
+	clean.BusyCommand = observability.Redact(clean.BusyCommand)
+	clean.Peers = append([]PeerSnapshot(nil), s.Peers...)
+	for index := range clean.Peers {
+		clean.Peers[index].ID = observability.Redact(clean.Peers[index].ID)
+		clean.Peers[index].Name = observability.Redact(clean.Peers[index].Name)
+		clean.Peers[index].NetBirdIP = observability.Redact(clean.Peers[index].NetBirdIP)
+	}
+	return json.Marshal(stateSnapshotJSON(clean))
 }
 
 type CreateRoomRequest struct {
