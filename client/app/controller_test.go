@@ -193,6 +193,22 @@ func TestControllerPublishesServiceRepairState(t *testing.T) {
 	}
 }
 
+func TestControllerShutdownDoesNotMutateRoomSession(t *testing.T) {
+	rooms := &fakeRoomSession{snapshot: session.Snapshot{State: session.StateConnectedP2P, Path: clientnetbird.PathP2P}}
+	closed := false
+	controller := NewWithSession(slog.New(slog.NewTextHandler(io.Discard, nil)), rooms, func() error {
+		closed = true
+		return nil
+	})
+	controller.Shutdown(context.Background())
+	if !closed {
+		t.Fatal("shutdown did not close the local RPC adapter")
+	}
+	if len(rooms.calls) != 0 {
+		t.Fatalf("shutdown mutated room session: %v", rooms.calls)
+	}
+}
+
 func testRoomMetadata() securestore.RoomMetadata {
 	return securestore.RoomMetadata{
 		Version:       securestore.CurrentMetadataVersion,
