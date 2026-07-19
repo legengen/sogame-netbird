@@ -16,8 +16,8 @@
 
 ## 3. Official NetBird Distribution and Service
 
-- [ ] 3.1 Add pinned v0.74.7 artifact metadata and build-time digest verification without committing the binary to source control unless explicitly approved
-- [ ] 3.2 Implement Windows publisher-signature and digest verification before any install or repair action
+- [x] 3.1 Add pinned v0.74.7 artifact metadata and build-time digest verification without committing the binary to source control unless explicitly approved
+- [x] 3.2 Implement Windows publisher-signature and digest verification before any install or repair action
 - [ ] 3.3 Implement unprivileged service discovery, version inspection, and health classification
 - [ ] 3.4 Implement the narrowly scoped elevated install and repair helper without elevating the Wails GUI
 - [ ] 3.5 Implement explicit service removal support for the uninstaller while preserving the user's choice to retain the official daemon
