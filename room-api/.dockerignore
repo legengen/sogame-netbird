@@ -1,0 +1,9 @@
+.git
+.ssh
+*.db
+*.db-*
+*.env
+config.yaml
+dashboard.env
+*.pat
+*.setup-key
