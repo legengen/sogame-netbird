@@ -5,8 +5,8 @@
 - `go test ./...`, `go test -race ./app ./internal/diagnostics ./internal/observability`, and `go vet ./...` pass on the development Windows host.
 - Frontend `npm test` and `npm run build` pass.
 - `wails build -clean` produces `build/bin/sogame.exe` for `windows/amd64`.
-- `scripts/package-windows.ps1` verifies the official NetBird v0.74.7 MSI (size `37,974,016`, SHA-256 `1be9ce80767a728a8682bc3c114256b224b8d6657400ac031e458a05b5e5942d`) and produces a signed-ready staging directory plus ZIP.
-- `scripts/verify-release-package.ps1` rechecks package contents, metadata, MSI size, digest, and signed-ready manifest.
+- `scripts/package-windows.ps1` verifies the official NetBird v0.74.7 MSI (size `37,974,016`, SHA-256 `1be9ce80767a728a8682bc3c114256b224b8d6657400ac031e458a05b5e5942d`) and produces an unsigned demo staging directory plus ZIP.
+- `scripts/verify-release-package.ps1` rechecks package contents, metadata, MSI size, digest, unsigned executable state, and demo release manifest.
 - The installed official v0.74.7 daemon passed `TestOfficialV0747DaemonReadOnlyContract`, the official MSI passed signature and tamper verification, and read-only Windows service discovery passed.
 - Two clients connected to the self-hosted control plane, exchanged traffic with 0% packet loss, and both reported `Peers count: 1/1 Connected` with `Connection type: P2P`.
 - With direct peer UDP temporarily blocked on one client, the official daemon selected `rels://legengen.top:443`, reported `Connection type: Relayed`, and carried four successful ICMP replies with 0% packet loss. Removing the temporary rules restored P2P and 0% packet loss.

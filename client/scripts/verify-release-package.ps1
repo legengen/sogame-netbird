@@ -21,11 +21,18 @@ if ($hash -ne $metadata.windowsX64.sha256.ToLowerInvariant()) {
     throw 'Release package MSI digest mismatch'
 }
 $manifest = Get-Content -Raw -LiteralPath (Join-Path $root 'package-manifest.json') | ConvertFrom-Json
-if ($manifest.platform -ne 'windows/amd64' -or $manifest.netbirdVersion -ne '0.74.7' -or $manifest.signedReady -ne $true) {
-    throw 'Release package manifest is not a signed-ready v0.74.7 Windows package'
+if ($manifest.platform -ne 'windows/amd64' -or $manifest.netbirdVersion -ne '0.74.7' -or $manifest.releaseChannel -ne 'demo' -or $manifest.signed -ne $false) {
+    throw 'Release package manifest is not an unsigned demo v0.74.7 Windows package'
 }
 $applicationVersion = (Get-Item -LiteralPath (Join-Path $root 'sogame.exe')).VersionInfo
-if ($applicationVersion.FileVersionRaw.ToString() -ne '0.1.0.0' -or $applicationVersion.ProductVersionRaw.ToString() -ne '0.1.0.0') {
-    throw 'Sogame executable version metadata is not v0.1.0'
+$expectedExecutableVersion = "$($manifest.version).0"
+if ($applicationVersion.FileVersionRaw.ToString() -ne $expectedExecutableVersion -or $applicationVersion.ProductVersionRaw.ToString() -ne $expectedExecutableVersion) {
+    throw "Sogame executable version metadata is not v$($manifest.version)"
+}
+foreach ($file in @('sogame.exe', 'sogame-helper.exe')) {
+    $signature = Get-AuthenticodeSignature -LiteralPath (Join-Path $root $file)
+    if ($signature.Status -ne 'NotSigned') {
+        throw "$file must be unsigned for the demo release channel"
+    }
 }
 Write-Output "Verified release package $root with NetBird SHA-256 $hash"
