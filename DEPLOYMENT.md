@@ -13,7 +13,19 @@
 
 - `netbird-traefik`: TLS termination, HTTP redirect, ACME renewal
 - `netbird-dashboard`: web UI
-- `netbird-server`: official combined Management, Signal, Relay, STUN, and embedded IdP server
+- `netbird-server`: official combined Management, Signal, Relay, STUN, and embedded IdP server, pinned to NetBird v0.74.7
+
+## Coordinated NetBird version
+
+The combined server image and the Windows client daemon are an exact-version pair
+for this release. `docker-compose.yml` pins
+`netbirdio/netbird-server:0.74.7`; the desktop package must use the official
+NetBird v0.74.7 Windows x64 distribution and reject any other daemon version.
+
+Do not change either side to `latest` or enable daemon auto-update. A NetBird
+upgrade is a coordinated release change: update the server image, Windows
+artifact URL and digest, expected publisher, RPC compatibility tests, and client
+release version together before deployment.
 
 ## Published ports
 
