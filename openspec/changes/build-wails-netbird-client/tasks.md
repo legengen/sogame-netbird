@@ -36,7 +36,7 @@
 ## 5. Room API and Secure Storage
 
 - [x] 5.1 Implement typed Room API clients for create, join, and peer listing with request limits, timeouts, and typed HTTP errors
-- [ ] 5.2 Generate a unique idempotency key for each create intent and safely reuse it only for retries of that intent
+- [x] 5.2 Generate a unique idempotency key for each create intent and safely reuse it only for retries of that intent
 - [ ] 5.3 Implement Room API retry and exponential-backoff behavior for transient failures and HTTP 429
 - [ ] 5.4 Implement versioned atomic storage for non-secret single-room metadata
 - [ ] 5.5 Implement Windows user-bound Room Code protection with DPAPI or Credential Manager

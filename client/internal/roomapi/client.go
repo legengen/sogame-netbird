@@ -3,6 +3,8 @@ package roomapi
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,15 +14,16 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	clientnetbird "github.com/legengen/sogame-netbird/client/internal/netbird"
 )
 
 const (
-	defaultRequestTimeout = 10 * time.Second
-	defaultResponseLimit  = 64 << 10
-	maxIdempotencyKeySize = 128
+	defaultRequestTimeout   = 10 * time.Second
+	defaultResponseLimit    = 64 << 10
+	createIntentEntropySize = 16
 )
 
 type ErrorCode string
@@ -83,6 +86,63 @@ type Client struct {
 	responseLimit int64
 }
 
+var (
+	ErrCreateIntentInFlight = errors.New("room create intent is already in flight")
+	ErrCreateIntentComplete = errors.New("room create intent is already complete")
+)
+
+type CreateIntent struct {
+	mu       sync.Mutex
+	key      string
+	inFlight bool
+	complete bool
+}
+
+func NewCreateIntent() (*CreateIntent, error) {
+	return newCreateIntent(rand.Reader)
+}
+
+func newCreateIntent(source io.Reader) (*CreateIntent, error) {
+	entropy := make([]byte, createIntentEntropySize)
+	if _, err := io.ReadFull(source, entropy); err != nil {
+		for index := range entropy {
+			entropy[index] = 0
+		}
+		return nil, errors.New("generate room create intent")
+	}
+	key := "sogame-room-" + hex.EncodeToString(entropy)
+	for index := range entropy {
+		entropy[index] = 0
+	}
+	return &CreateIntent{key: key}, nil
+}
+
+func (i *CreateIntent) begin() (string, error) {
+	if i == nil {
+		return "", errors.New("room create intent is required")
+	}
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	if i.complete {
+		return "", ErrCreateIntentComplete
+	}
+	if i.inFlight {
+		return "", ErrCreateIntentInFlight
+	}
+	i.inFlight = true
+	return i.key, nil
+}
+
+func (i *CreateIntent) finish(complete bool) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.inFlight = false
+	if complete {
+		i.complete = true
+		i.key = ""
+	}
+}
+
 func NewClient(baseURL string, httpClient *http.Client) (*Client, error) {
 	return newClient(baseURL, httpClient, defaultRequestTimeout, defaultResponseLimit)
 }
@@ -114,20 +174,27 @@ func newClient(baseURL string, httpClient *http.Client, timeout time.Duration, r
 	}, nil
 }
 
-func (c *Client) Create(ctx context.Context, idempotencyKey string) (Enrollment, error) {
-	idempotencyKey = strings.TrimSpace(idempotencyKey)
-	if idempotencyKey == "" || len(idempotencyKey) > maxIdempotencyKeySize {
-		return Enrollment{}, errors.New("invalid room create idempotency key")
+func (c *Client) Create(ctx context.Context, intent *CreateIntent) (Enrollment, error) {
+	idempotencyKey, err := intent.begin()
+	if err != nil {
+		return Enrollment{}, err
 	}
+	complete := false
+	defer func() { intent.finish(complete) }()
 	var response enrollmentResponse
-	err := c.do(ctx, http.MethodPost, "/rooms", bytes.NewReader([]byte("{}")), map[string]string{
+	err = c.do(ctx, http.MethodPost, "/rooms", bytes.NewReader([]byte("{}")), map[string]string{
 		"Content-Type":    "application/json",
 		"Idempotency-Key": idempotencyKey,
 	}, &response)
 	if err != nil {
 		return Enrollment{}, err
 	}
-	return response.enrollment(true, "")
+	enrollment, err := response.enrollment(true, "")
+	if err != nil {
+		return Enrollment{}, err
+	}
+	complete = true
+	return enrollment, nil
 }
 
 func (c *Client) Join(ctx context.Context, roomCode string) (Enrollment, error) {

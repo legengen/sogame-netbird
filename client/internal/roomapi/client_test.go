@@ -16,7 +16,7 @@ func TestClientCreateJoinAndListPeers(t *testing.T) {
 		response.Header().Set("Content-Type", "application/json")
 		switch request.URL.Path {
 		case "/rooms":
-			if request.Method != http.MethodPost || request.Header.Get("Idempotency-Key") != "intent-1" {
+			if request.Method != http.MethodPost || !strings.HasPrefix(request.Header.Get("Idempotency-Key"), "sogame-room-") {
 				t.Errorf("create request=%s headers=%v", request.Method, request.Header)
 			}
 			response.WriteHeader(http.StatusCreated)
@@ -38,7 +38,11 @@ func TestClientCreateJoinAndListPeers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	created, err := client.Create(context.Background(), "intent-1")
+	intent, err := NewCreateIntent()
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, err := client.Create(context.Background(), intent)
 	if err != nil {
 		t.Fatal(err)
 	}
