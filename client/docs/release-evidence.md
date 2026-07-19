@@ -7,15 +7,17 @@
 - `wails build -clean` produces `build/bin/sogame.exe` for `windows/amd64`.
 - `scripts/package-windows.ps1` verifies the official NetBird v0.74.7 MSI (size `37,974,016`, SHA-256 `1be9ce80767a728a8682bc3c114256b224b8d6657400ac031e458a05b5e5942d`) and produces a signed-ready staging directory plus ZIP.
 - `scripts/verify-release-package.ps1` rechecks package contents, metadata, MSI size, digest, and signed-ready manifest.
+- The installed official v0.74.7 daemon passed `TestOfficialV0747DaemonReadOnlyContract`, the official MSI passed signature and tamper verification, and read-only Windows service discovery passed.
+- Two clients connected to the self-hosted control plane, exchanged traffic with 0% packet loss, and both reported `Peers count: 1/1 Connected` with `Connection type: P2P`.
 
 ## Environment-gated evidence
 
-The following release gates remain pending because this workspace has no clean Windows 10/11 VM and no second public client. The active host has an installed NetBird v0.74.6 service; replacing it with v0.74.7 would disrupt the user's current network and is intentionally not attempted.
+The following release gates remain pending because this workspace has no clean Windows 10/11 VM and no network-isolation harness for forced Relay testing.
 
-- Clean v0.74.7 RPC contract probe and bundled-daemon contract test.
+- Clean Windows VM RPC probe and install lifecycle matrix.
 - Clean install, repair, upgrade, GUI-only uninstall, and optional daemon removal.
 - Room create/join with the managed profile against the self-hosted control plane.
-- Same-room P2P and Relay fallback with direct connectivity blocked.
+- Relay fallback with direct connectivity blocked (P2P path is verified above).
 - Sleep/network-switch/daemon-restart end-to-end workflows.
 - Cross-room isolation with multiple simultaneous room peers.
 
