@@ -89,6 +89,7 @@ func TestClientReturnsTypedSafeHTTPErrors(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			client.retryDelays = nil
 			_, err = client.Join(context.Background(), "7X4K-329B-YY95")
 			var httpError *HTTPError
 			if !errors.As(err, &httpError) || httpError.Code != test.code {

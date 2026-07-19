@@ -24,7 +24,14 @@ const (
 	defaultRequestTimeout   = 10 * time.Second
 	defaultResponseLimit    = 64 << 10
 	createIntentEntropySize = 16
+	maximumRetryDelay       = 5 * time.Second
 )
+
+var defaultRetryDelays = []time.Duration{
+	250 * time.Millisecond,
+	500 * time.Millisecond,
+	time.Second,
+}
 
 type ErrorCode string
 
@@ -48,7 +55,17 @@ func (e *HTTPError) Error() string {
 }
 
 func (e *HTTPError) Transient() bool {
-	return e.Code == ErrorRateLimited || e.Code == ErrorServiceUnavailable
+	switch e.StatusCode {
+	case http.StatusRequestTimeout,
+		http.StatusTooManyRequests,
+		http.StatusInternalServerError,
+		http.StatusBadGateway,
+		http.StatusServiceUnavailable,
+		http.StatusGatewayTimeout:
+		return true
+	default:
+		return false
+	}
 }
 
 type ProtocolError struct {
@@ -84,6 +101,8 @@ type Client struct {
 	httpClient    *http.Client
 	timeout       time.Duration
 	responseLimit int64
+	retryDelays   []time.Duration
+	wait          func(context.Context, time.Duration) error
 }
 
 var (
@@ -171,6 +190,8 @@ func newClient(baseURL string, httpClient *http.Client, timeout time.Duration, r
 		httpClient:    &clientCopy,
 		timeout:       timeout,
 		responseLimit: responseLimit,
+		retryDelays:   append([]time.Duration(nil), defaultRetryDelays...),
+		wait:          waitForRetry,
 	}, nil
 }
 
@@ -182,7 +203,7 @@ func (c *Client) Create(ctx context.Context, intent *CreateIntent) (Enrollment, 
 	complete := false
 	defer func() { intent.finish(complete) }()
 	var response enrollmentResponse
-	err = c.do(ctx, http.MethodPost, "/rooms", bytes.NewReader([]byte("{}")), map[string]string{
+	err = c.do(ctx, http.MethodPost, "/rooms", []byte("{}"), map[string]string{
 		"Content-Type":    "application/json",
 		"Idempotency-Key": idempotencyKey,
 	}, &response)
@@ -209,7 +230,7 @@ func (c *Client) Join(ctx context.Context, roomCode string) (Enrollment, error) 
 		return Enrollment{}, errors.New("encode room join request")
 	}
 	var response enrollmentResponse
-	if err := c.do(ctx, http.MethodPost, "/rooms/join", bytes.NewReader(body), map[string]string{
+	if err := c.do(ctx, http.MethodPost, "/rooms/join", body, map[string]string{
 		"Content-Type": "application/json",
 	}, &response); err != nil {
 		return Enrollment{}, err
@@ -246,12 +267,36 @@ func (c *Client) Peers(ctx context.Context, roomCode string) (PeerList, error) {
 	return PeerList{RoomID: response.RoomID, Peers: peers}, nil
 }
 
-func (c *Client) do(ctx context.Context, method, path string, body io.Reader, headers map[string]string, target any) error {
+func (c *Client) do(ctx context.Context, method, path string, body []byte, headers map[string]string, target any) error {
 	requestCtx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
+	for attempt := 0; ; attempt++ {
+		err := c.doAttempt(requestCtx, method, path, body, headers, target)
+		if err == nil || attempt >= len(c.retryDelays) || !isRetryable(err) {
+			return err
+		}
+		delay := c.retryDelays[attempt]
+		var httpError *HTTPError
+		if errors.As(err, &httpError) && httpError.RetryAfter > delay {
+			delay = httpError.RetryAfter
+		}
+		if delay > maximumRetryDelay {
+			delay = maximumRetryDelay
+		}
+		if err := c.wait(requestCtx, delay); err != nil {
+			return err
+		}
+	}
+}
+
+func (c *Client) doAttempt(ctx context.Context, method, path string, body []byte, headers map[string]string, target any) error {
 	endpoint := *c.baseURL
 	endpoint.Path = strings.TrimRight(c.baseURL.Path, "/") + path
-	request, err := http.NewRequestWithContext(requestCtx, method, endpoint.String(), body)
+	var bodyReader io.Reader
+	if body != nil {
+		bodyReader = bytes.NewReader(body)
+	}
+	request, err := http.NewRequestWithContext(ctx, method, endpoint.String(), bodyReader)
 	if err != nil {
 		return errors.New("build Room API request")
 	}
@@ -262,10 +307,10 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader, he
 
 	response, err := c.httpClient.Do(request)
 	if err != nil {
-		if requestCtx.Err() != nil {
-			return requestCtx.Err()
+		if ctx.Err() != nil {
+			return ctx.Err()
 		}
-		return errors.New("Room API is unavailable")
+		return &TransportError{}
 	}
 	defer response.Body.Close()
 	payload, err := io.ReadAll(io.LimitReader(response.Body, c.responseLimit+1))
@@ -282,6 +327,30 @@ func (c *Client) do(ctx context.Context, method, path string, body io.Reader, he
 		return &ProtocolError{Reason: "response is not valid JSON"}
 	}
 	return nil
+}
+
+type TransportError struct{}
+
+func (*TransportError) Error() string { return "Room API is unavailable" }
+
+func isRetryable(err error) bool {
+	var httpError *HTTPError
+	if errors.As(err, &httpError) {
+		return httpError.Transient()
+	}
+	var transportError *TransportError
+	return errors.As(err, &transportError)
+}
+
+func waitForRetry(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 type enrollmentResponse struct {

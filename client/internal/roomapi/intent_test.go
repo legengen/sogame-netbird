@@ -51,6 +51,7 @@ func TestCreateIntentReusesKeyAfterFailureAndSealsAfterSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	client.retryDelays = nil
 	intent, err := NewCreateIntent()
 	if err != nil {
 		t.Fatal(err)
@@ -85,6 +86,7 @@ func TestCreateIntentRejectsConcurrentUse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	client.retryDelays = nil
 	intent, err := NewCreateIntent()
 	if err != nil {
 		t.Fatal(err)
