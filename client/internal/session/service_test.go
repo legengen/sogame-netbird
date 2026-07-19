@@ -64,7 +64,9 @@ func (f *fakeSessionAdapter) Enroll(_ context.Context, request clientnetbird.Enr
 func (f *fakeSessionAdapter) Connect(context.Context, string) error {
 	return f.record("connect")
 }
-func (f *fakeSessionAdapter) Disconnect(context.Context, string) error { return nil }
+func (f *fakeSessionAdapter) Disconnect(context.Context, string) error {
+	return f.record("disconnect")
+}
 func (f *fakeSessionAdapter) Deregister(ctx context.Context, _ string) error {
 	if ctx.Err() == nil {
 		f.mu.Lock()

@@ -58,6 +58,7 @@ type Service struct {
 	metadata MetadataStorage
 	codes    RoomCodeStorage
 	machine  *Machine
+	monitor  *clientnetbird.RecoveryMonitor
 	now      func() time.Time
 	mu       sync.Mutex
 	busy     bool
@@ -70,8 +71,46 @@ func NewService(rooms RoomAPI, netbird clientnetbird.Adapter, metadata MetadataS
 		metadata: metadata,
 		codes:    codes,
 		machine:  NewMachine(),
+		monitor:  clientnetbird.NewRecoveryMonitor(netbird),
 		now:      time.Now,
 	}
+}
+
+func (s *Service) Disconnect(ctx context.Context) (Snapshot, error) {
+	if err := s.beginCommand(); err != nil {
+		return s.State(), err
+	}
+	defer s.endCommand()
+	metadata, err := s.loadSavedRoom()
+	if err != nil {
+		return s.fail(err)
+	}
+	if err := s.netbird.Disconnect(ctx, metadata.ProfileID); err != nil {
+		return s.fail(err)
+	}
+	return s.machine.Apply(Facts{RoomSaved: true, UserDisconnected: true}), nil
+}
+
+func (s *Service) Reconnect(ctx context.Context) (Snapshot, error) {
+	if err := s.beginCommand(); err != nil {
+		return s.State(), err
+	}
+	defer s.endCommand()
+	metadata, err := s.loadSavedRoom()
+	if err != nil {
+		return s.fail(err)
+	}
+	s.machine.Apply(Facts{RoomSaved: true, ReconnectInProgress: true})
+	status, err := s.monitor.Resume(ctx, metadata.ProfileID)
+	if err != nil {
+		return s.fail(err)
+	}
+	facts := Facts{
+		RoomSaved:         true,
+		ControlPlaneReady: status.ManagementConnected && status.SignalConnected,
+		DaemonPeers:       status.Peers,
+	}
+	return s.machine.Apply(facts), nil
 }
 
 func (s *Service) State() Snapshot { return s.machine.Snapshot() }
@@ -203,6 +242,19 @@ func (s *Service) requireEmptyStorage() error {
 		return nil
 	}
 	return ErrStoredStateConflict
+}
+
+func (s *Service) loadSavedRoom() (securestore.RoomMetadata, error) {
+	metadata, metadataErr := s.metadata.Load()
+	code, codeErr := s.codes.Load()
+	clearBytes(code)
+	if metadataErr == nil && codeErr == nil {
+		return metadata, nil
+	}
+	if errors.Is(metadataErr, securestore.ErrNoRoomMetadata) && errors.Is(codeErr, securestore.ErrNoProtectedRoomCode) {
+		return securestore.RoomMetadata{}, securestore.ErrNoRoomMetadata
+	}
+	return securestore.RoomMetadata{}, ErrStoredStateConflict
 }
 
 func (s *Service) fail(err error) (Snapshot, error) {

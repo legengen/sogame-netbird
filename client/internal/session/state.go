@@ -24,6 +24,7 @@ type Facts struct {
 	RoomSaved            bool
 	EnrollmentInProgress bool
 	ReconnectInProgress  bool
+	UserDisconnected     bool
 	RecoverableError     bool
 	ControlPlaneReady    bool
 	MembershipKnown      bool
@@ -78,6 +79,9 @@ func Derive(facts Facts) (State, clientnetbird.PathType) {
 	}
 	if facts.ReconnectInProgress {
 		return StateReconnecting, clientnetbird.PathNone
+	}
+	if facts.UserDisconnected {
+		return StateControlPlaneConnected, clientnetbird.PathNone
 	}
 
 	path := preferredConnectedPath(facts.DaemonPeers)
