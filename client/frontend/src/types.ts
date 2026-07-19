@@ -48,3 +48,12 @@ export interface StateSnapshot {
   error?: PublicError
   busyCommand?: string
 }
+
+export interface CreateRoomRequest {
+  displayName: string
+}
+
+export interface JoinRoomRequest {
+  roomCode: string
+  displayName: string
+}

@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   Wifi,
 } from 'lucide-react'
-import { getState } from './bridge'
+import { createRoom, getState, joinRoom } from './bridge'
 import { isValidRoomCode, normalizeRoomCode } from './roomCode'
 import type { StateSnapshot } from './types'
 
@@ -37,6 +37,35 @@ function App() {
   }, [])
 
   const state = snapshot?.state ?? 'NoRoom'
+  const busy = Boolean(snapshot?.busyCommand)
+
+  async function submitRoom() {
+    if (busy || (mode === 'join' && !isValidRoomCode(roomCode))) {
+      return
+    }
+    setSnapshot((current) => ({
+      ...(current ?? {
+        revision: 0,
+        connectedPath: 'none',
+        peers: [],
+        peersStale: false,
+        service: {
+          installed: false,
+          running: false,
+          version: '',
+          expectedVersion: '0.74.7',
+          repairRequired: false,
+        },
+      }),
+      state: 'Enrolling',
+      busyCommand: mode,
+      error: undefined,
+    }))
+    const next = mode === 'create'
+      ? await createRoom({ displayName: '' })
+      : await joinRoom({ roomCode, displayName: '' })
+    setSnapshot(next)
+  }
 
   return (
     <div className="app-shell">
@@ -124,11 +153,19 @@ function App() {
             <button
               className="primary-action"
               type="button"
-              disabled={mode === 'join' && !isValidRoomCode(roomCode)}
+              disabled={busy || (mode === 'join' && !isValidRoomCode(roomCode))}
+              onClick={() => void submitRoom()}
             >
               {mode === 'create' ? <Plus size={18} /> : <LogIn size={18} />}
-              <span>{mode === 'create' ? '创建并连接' : '加入并连接'}</span>
+              <span>{busy ? '正在连接...' : mode === 'create' ? '创建并连接' : '加入并连接'}</span>
             </button>
+
+            {snapshot?.error && (
+              <div className="inline-error" role="alert">
+                <strong>{snapshot.error.message}</strong>
+                {snapshot.error.action && <span>{snapshot.error.action}</span>}
+              </div>
+            )}
           </div>
         </section>
       </main>

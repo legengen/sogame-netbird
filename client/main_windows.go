@@ -20,7 +20,7 @@ var assets embed.FS
 
 func main() {
 	logger := slog.New(observability.NewRedactingHandler(os.Stderr, slog.LevelInfo))
-	application := appcore.New(logger)
+	application := appcore.NewWindowsController(logger)
 
 	err := wails.Run(&options.App{
 		Title:            "Sogame",

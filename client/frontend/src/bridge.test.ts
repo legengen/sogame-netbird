@@ -1,0 +1,41 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createRoom, joinRoom } from './bridge'
+import type { StateSnapshot } from './types'
+
+const connected: StateSnapshot = {
+  revision: 1,
+  state: 'WaitingForPeer',
+  connectedPath: 'none',
+  peers: [],
+  peersStale: false,
+  service: {
+    installed: true,
+    running: true,
+    version: '0.74.7',
+    expectedVersion: '0.74.7',
+    repairRequired: false,
+  },
+}
+
+afterEach(() => vi.unstubAllGlobals())
+
+describe('Wails room workflow bridge', () => {
+  it('sends create and join command DTOs to the backend', async () => {
+    const create = vi.fn().mockResolvedValue(connected)
+    const join = vi.fn().mockResolvedValue(connected)
+    vi.stubGlobal('window', { go: { app: { Controller: { CreateRoom: create, JoinRoom: join } } } })
+
+    await expect(createRoom({ displayName: '' })).resolves.toEqual(connected)
+    await expect(joinRoom({ roomCode: '7X4K-329B-YY95', displayName: '' })).resolves.toEqual(connected)
+    expect(create).toHaveBeenCalledWith({ displayName: '' })
+    expect(join).toHaveBeenCalledWith({ roomCode: '7X4K-329B-YY95', displayName: '' })
+  })
+
+  it('returns a recoverable state when Wails bindings are unavailable', async () => {
+    vi.stubGlobal('window', {})
+    const state = await createRoom({ displayName: '' })
+    expect(state.state).toBe('RecoverableError')
+    expect(state.error?.code).toBe('NETBIRD_SERVICE_UNAVAILABLE')
+    expect(state.busyCommand).toBeUndefined()
+  })
+})

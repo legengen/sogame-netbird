@@ -303,6 +303,27 @@ h1 {
   border-color: #d6dde1;
 }
 
+.inline-error {
+  display: grid;
+  gap: 4px;
+  margin-top: 14px;
+  padding: 11px 12px;
+  color: #812d2d;
+  background: #fff5f4;
+  border: 1px solid #efcfcc;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.inline-error strong {
+  font-weight: 650;
+}
+
+.inline-error span {
+  color: #96514d;
+}
+
 @media (max-width: 760px) {
   .app-shell {
     grid-template-columns: 176px minmax(0, 1fr);
