@@ -10,6 +10,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+if ([string]::IsNullOrWhiteSpace($env:GOCACHE)) {
+    $env:GOCACHE = Join-Path $PSScriptRoot '..\..\.cache\go-build'
+    New-Item -ItemType Directory -Force -Path $env:GOCACHE | Out-Null
+}
+
 if ($TargetOS -ne 'windows' -or $TargetArch -ne 'amd64') {
     throw 'Sogame releases support only Windows x64 (GOOS=windows GOARCH=amd64).'
 }
