@@ -1,6 +1,10 @@
 package netbird
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -61,5 +65,31 @@ func TestSetupKeyStringIsAlwaysRedactedAndClearZerosMemory(t *testing.T) {
 	secret.Clear()
 	if secret.value != nil {
 		t.Fatal("secret retained bytes after Clear")
+	}
+}
+
+func TestSetupKeyCannotBeFormattedLoggedOrSerialized(t *testing.T) {
+	secretValue := "secret-setup-key"
+	secret := NewSetupKey([]byte(secretValue))
+	defer secret.Clear()
+	for _, formatted := range []string{
+		fmt.Sprintf("%s", secret),
+		fmt.Sprintf("%v", secret),
+		fmt.Sprintf("%+v", secret),
+		fmt.Sprintf("%#v", secret),
+		fmt.Sprintf("%q", secret),
+	} {
+		if formatted != "[REDACTED]" || bytes.Contains([]byte(formatted), []byte(secretValue)) {
+			t.Fatalf("unsafe formatted Setup Key=%q", formatted)
+		}
+	}
+	var logOutput bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logOutput, nil))
+	logger.Info("enrollment", "credential", secret)
+	if bytes.Contains(logOutput.Bytes(), []byte(secretValue)) || !bytes.Contains(logOutput.Bytes(), []byte("[REDACTED]")) {
+		t.Fatalf("unsafe log output=%q", logOutput.String())
+	}
+	if payload, err := json.Marshal(secret); err == nil {
+		t.Fatalf("Setup Key serialized: %s", payload)
 	}
 }

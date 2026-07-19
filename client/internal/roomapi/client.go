@@ -80,7 +80,53 @@ type Enrollment struct {
 	RoomID        string
 	RoomCode      string
 	ManagementURL string
-	SetupKey      *clientnetbird.SetupKey
+	secret        *enrollmentSecret
+}
+
+var ErrSetupKeyConsumed = errors.New("enrollment Setup Key is no longer available")
+
+type enrollmentSecret struct {
+	mu       sync.Mutex
+	key      *clientnetbird.SetupKey
+	consumed bool
+}
+
+func (e Enrollment) ConsumeSetupKey(consumer func(*clientnetbird.SetupKey) error) error {
+	if consumer == nil {
+		return ErrSetupKeyConsumed
+	}
+	key, err := e.takeSetupKey()
+	if err != nil {
+		return err
+	}
+	defer key.Clear()
+	return consumer(key)
+}
+
+func (e Enrollment) DiscardSetupKey() {
+	key, err := e.takeSetupKey()
+	if err == nil {
+		key.Clear()
+	}
+}
+
+func (e Enrollment) takeSetupKey() (*clientnetbird.SetupKey, error) {
+	if e.secret == nil {
+		return nil, ErrSetupKeyConsumed
+	}
+	e.secret.mu.Lock()
+	defer e.secret.mu.Unlock()
+	if e.secret.consumed || e.secret.key == nil {
+		return nil, ErrSetupKeyConsumed
+	}
+	key := e.secret.key
+	e.secret.key = nil
+	e.secret.consumed = true
+	return key, nil
+}
+
+func (Enrollment) MarshalJSON() ([]byte, error) {
+	return nil, errors.New("room enrollment serialization is forbidden")
 }
 
 type Peer struct {
@@ -229,6 +275,7 @@ func (c *Client) Join(ctx context.Context, roomCode string) (Enrollment, error) 
 	if err != nil {
 		return Enrollment{}, errors.New("encode room join request")
 	}
+	defer clearBytes(body)
 	var response enrollmentResponse
 	if err := c.do(ctx, http.MethodPost, "/rooms/join", body, map[string]string{
 		"Content-Type": "application/json",
@@ -317,6 +364,7 @@ func (c *Client) doAttempt(ctx context.Context, method, path string, body []byte
 	if err != nil {
 		return errors.New("read Room API response")
 	}
+	defer clearBytes(payload)
 	if int64(len(payload)) > c.responseLimit {
 		return &ProtocolError{Reason: "response exceeds size limit"}
 	}
@@ -360,7 +408,8 @@ type enrollmentResponse struct {
 	SetupKey      string `json:"setup_key"`
 }
 
-func (r enrollmentResponse) enrollment(requireRoomCode bool, joinedCode string) (Enrollment, error) {
+func (r *enrollmentResponse) enrollment(requireRoomCode bool, joinedCode string) (Enrollment, error) {
+	defer func() { r.SetupKey = "" }()
 	roomCode := strings.TrimSpace(r.RoomCode)
 	if !requireRoomCode {
 		roomCode = joinedCode
@@ -376,7 +425,9 @@ func (r enrollmentResponse) enrollment(requireRoomCode bool, joinedCode string) 
 		RoomID:        r.RoomID,
 		RoomCode:      roomCode,
 		ManagementURL: managementURL.String(),
-		SetupKey:      clientnetbird.NewSetupKey([]byte(r.SetupKey)),
+		secret: &enrollmentSecret{
+			key: clientnetbird.NewSetupKey([]byte(r.SetupKey)),
+		},
 	}, nil
 }
 
@@ -429,6 +480,12 @@ func isLoopbackHost(host string) bool {
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
+}
+
+func clearBytes(value []byte) {
+	for index := range value {
+		value[index] = 0
+	}
 }
 
 func normalizeRoomCode(value string) (string, error) {

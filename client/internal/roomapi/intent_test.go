@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"sync"
 	"testing"
+
+	clientnetbird "github.com/legengen/sogame-netbird/client/internal/netbird"
 )
 
 func TestCreateIntentKeysAreUniqueAndBackendOwned(t *testing.T) {
@@ -64,7 +66,9 @@ func TestCreateIntentReusesKeyAfterFailureAndSealsAfterSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer enrollment.SetupKey.Clear()
+	if err := enrollment.ConsumeSetupKey(func(*clientnetbird.SetupKey) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
 	if len(keys) != 2 || keys[0] == "" || keys[0] != keys[1] {
 		t.Fatalf("idempotency keys=%v", keys)
 	}

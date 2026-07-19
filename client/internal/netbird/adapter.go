@@ -2,6 +2,10 @@ package netbird
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
 	"time"
 )
 
@@ -38,6 +42,18 @@ func NewSetupKey(value []byte) *SetupKey {
 }
 
 func (s *SetupKey) String() string { return "[REDACTED]" }
+
+func (s *SetupKey) Format(state fmt.State, _ rune) {
+	_, _ = io.WriteString(state, "[REDACTED]")
+}
+
+func (s *SetupKey) LogValue() slog.Value {
+	return slog.StringValue("[REDACTED]")
+}
+
+func (s *SetupKey) MarshalJSON() ([]byte, error) {
+	return nil, errors.New("Setup Key serialization is forbidden")
+}
 
 func (s *SetupKey) Clear() {
 	if s == nil {

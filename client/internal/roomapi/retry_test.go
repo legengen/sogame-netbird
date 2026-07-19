@@ -8,6 +8,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	clientnetbird "github.com/legengen/sogame-netbird/client/internal/netbird"
 )
 
 func TestClientRetriesTransientCreateWithSameIntentKey(t *testing.T) {
@@ -52,7 +54,9 @@ func TestClientRetriesTransientCreateWithSameIntentKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer enrollment.SetupKey.Clear()
+	if err := enrollment.ConsumeSetupKey(func(*clientnetbird.SetupKey) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
 	if requests != 3 || len(keys) != 3 || keys[0] == "" || keys[0] != keys[1] || keys[1] != keys[2] {
 		t.Fatalf("requests=%d keys=%v", requests, keys)
 	}

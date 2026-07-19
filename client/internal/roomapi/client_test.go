@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	clientnetbird "github.com/legengen/sogame-netbird/client/internal/netbird"
 )
 
 func TestClientCreateJoinAndListPeers(t *testing.T) {
@@ -46,17 +48,26 @@ func TestClientCreateJoinAndListPeers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer created.SetupKey.Clear()
-	if created.RoomID != "room-1" || created.RoomCode != "7X4K-329B-YY95" || created.SetupKey.String() != "[REDACTED]" {
+	if created.RoomID != "room-1" || created.RoomCode != "7X4K-329B-YY95" {
 		t.Fatalf("created=%+v", created)
+	}
+	if err := created.ConsumeSetupKey(func(key *clientnetbird.SetupKey) error {
+		if key.String() != "[REDACTED]" {
+			t.Fatalf("Setup Key string=%q", key.String())
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
 	}
 	joined, err := client.Join(context.Background(), " 7X4K-329B-YY95 ")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer joined.SetupKey.Clear()
 	if joined.RoomID != "room-1" || joined.RoomCode != "7X4K-329B-YY95" {
 		t.Fatalf("joined=%+v", joined)
+	}
+	if err := joined.ConsumeSetupKey(func(*clientnetbird.SetupKey) error { return nil }); err != nil {
+		t.Fatal(err)
 	}
 	peers, err := client.Peers(context.Background(), joined.RoomCode)
 	if err != nil {
