@@ -41,4 +41,23 @@ describe('Wails room workflow bridge', () => {
     expect(state.error?.code).toBe('NETBIRD_SERVICE_UNAVAILABLE')
     expect(state.busyCommand).toBeUndefined()
   })
+
+  it('routes lifecycle commands through the Wails controller', async () => {
+    const state = vi.fn().mockResolvedValue(connected)
+    const switchRoom = vi.fn().mockResolvedValue(connected)
+    vi.stubGlobal('window', { go: { app: { Controller: {
+      ConnectRoom: state,
+      DisconnectRoom: state,
+      LeaveRoom: state,
+      SwitchRoom: switchRoom,
+    } } } })
+
+    const { connectRoom, disconnectRoom, leaveRoom, switchRoom: invokeSwitch } = await import('./bridge')
+    await connectRoom()
+    await disconnectRoom()
+    await leaveRoom()
+    await invokeSwitch({ mode: 'join', roomCode: '7X4K-329B-YY95', displayName: '', confirmed: true })
+    expect(state).toHaveBeenCalledTimes(3)
+    expect(switchRoom).toHaveBeenCalledWith({ mode: 'join', roomCode: '7X4K-329B-YY95', displayName: '', confirmed: true })
+  })
 })

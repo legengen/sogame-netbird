@@ -1,4 +1,4 @@
-import type { CreateRoomRequest, JoinRoomRequest, RevealRoomCodeResult, StateSnapshot } from './types'
+import type { CreateRoomRequest, JoinRoomRequest, RevealRoomCodeResult, StateSnapshot, SwitchRoomRequest } from './types'
 
 declare global {
   interface Window {
@@ -9,6 +9,10 @@ declare global {
           CreateRoom: (request: CreateRoomRequest) => Promise<StateSnapshot>
           JoinRoom: (request: JoinRoomRequest) => Promise<StateSnapshot>
           RevealRoomCode: () => Promise<RevealRoomCodeResult>
+          ConnectRoom: () => Promise<StateSnapshot>
+          DisconnectRoom: () => Promise<StateSnapshot>
+          LeaveRoom: () => Promise<StateSnapshot>
+          SwitchRoom: (request: SwitchRoomRequest) => Promise<StateSnapshot>
         }
       }
     }
@@ -65,6 +69,34 @@ export async function revealRoomCode(): Promise<RevealRoomCodeResult> {
         action: '重新启动客户端后重试',
       },
     }
+  }
+  return binding()
+}
+
+export async function connectRoom(): Promise<StateSnapshot> {
+  return invokeLifecycle('ConnectRoom', 'connect')
+}
+
+export async function disconnectRoom(): Promise<StateSnapshot> {
+  return invokeLifecycle('DisconnectRoom', 'disconnect')
+}
+
+export async function leaveRoom(): Promise<StateSnapshot> {
+  return invokeLifecycle('LeaveRoom', 'leave')
+}
+
+export async function switchRoom(request: SwitchRoomRequest): Promise<StateSnapshot> {
+  const binding = window.go?.app?.Controller?.SwitchRoom
+  if (!binding) {
+    return unavailableState('switch')
+  }
+  return binding(request)
+}
+
+async function invokeLifecycle(command: 'ConnectRoom' | 'DisconnectRoom' | 'LeaveRoom', label: string): Promise<StateSnapshot> {
+  const binding = window.go?.app?.Controller?.[command]
+  if (!binding) {
+    return unavailableState(label)
   }
   return binding()
 }

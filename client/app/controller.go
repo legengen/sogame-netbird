@@ -39,6 +39,14 @@ type RoomViewSession interface {
 	RevealRoomCode(context.Context) (string, error)
 }
 
+type RoomLifecycleSession interface {
+	RoomViewSession
+	Connect(context.Context) (session.Snapshot, error)
+	Disconnect(context.Context) (session.Snapshot, error)
+	Leave(context.Context) (session.Snapshot, error)
+	Switch(context.Context, session.SwitchRequest) (session.Snapshot, error)
+}
+
 func New(logger *slog.Logger) *Controller {
 	return &Controller{
 		logger: logger,
@@ -128,7 +136,67 @@ func (c *Controller) JoinRoom(request JoinRoomRequest) StateSnapshot {
 	})
 }
 
+func (c *Controller) ConnectRoom() StateSnapshot {
+	return c.runCommand("connect", "", func(ctx context.Context) (session.Snapshot, error) {
+		lifecycle, ok := c.lifecycleSession()
+		if !ok {
+			return session.Snapshot{}, errors.New("room session is unavailable")
+		}
+		return lifecycle.Connect(ctx)
+	})
+}
+
+func (c *Controller) DisconnectRoom() StateSnapshot {
+	return c.runCommand("disconnect", "", func(ctx context.Context) (session.Snapshot, error) {
+		lifecycle, ok := c.lifecycleSession()
+		if !ok {
+			return session.Snapshot{}, errors.New("room session is unavailable")
+		}
+		return lifecycle.Disconnect(ctx)
+	})
+}
+
+func (c *Controller) LeaveRoom() StateSnapshot {
+	return c.runCommand("leave", "", func(ctx context.Context) (session.Snapshot, error) {
+		lifecycle, ok := c.lifecycleSession()
+		if !ok {
+			return session.Snapshot{}, errors.New("room session is unavailable")
+		}
+		return lifecycle.Leave(ctx)
+	})
+}
+
+func (c *Controller) SwitchRoom(request SwitchRoomRequest) StateSnapshot {
+	displayName := request.DisplayName
+	if strings.TrimSpace(displayName) == "" {
+		displayName, _ = os.Hostname()
+	}
+	return c.runCommand("switch", "", func(ctx context.Context) (session.Snapshot, error) {
+		lifecycle, ok := c.lifecycleSession()
+		if !ok {
+			return session.Snapshot{}, errors.New("room session is unavailable")
+		}
+		return lifecycle.Switch(ctx, session.SwitchRequest{
+			Mode:      request.Mode,
+			RoomCode:  request.RoomCode,
+			Hostname:  displayName,
+			Confirmed: request.Confirmed,
+		})
+	})
+}
+
+func (c *Controller) lifecycleSession() (RoomLifecycleSession, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	lifecycle, ok := c.rooms.(RoomLifecycleSession)
+	return lifecycle, ok
+}
+
 func (c *Controller) runRoomCommand(command string, execute func(context.Context) (session.Snapshot, error)) StateSnapshot {
+	return c.runCommand(command, StateEnrolling, execute)
+}
+
+func (c *Controller) runCommand(command string, initialState ConnectionState, execute func(context.Context) (session.Snapshot, error)) StateSnapshot {
 	c.mu.Lock()
 	if c.state.BusyCommand != "" {
 		c.state.Error = &PublicError{
@@ -143,8 +211,8 @@ func (c *Controller) runRoomCommand(command string, execute func(context.Context
 	}
 	c.state.BusyCommand = command
 	c.state.Error = nil
-	if c.state.State == StateNoRoom {
-		c.state.State = StateEnrolling
+	if initialState != "" && c.state.State == StateNoRoom {
+		c.state.State = initialState
 	}
 	ctx := c.ctx
 	if ctx == nil {
@@ -169,7 +237,21 @@ func (c *Controller) runRoomCommand(command string, execute func(context.Context
 	c.state.State = ConnectionState(snapshot.State)
 	c.state.ConnectedPath = PathType(snapshot.Path)
 	c.state.Error = nil
+	if snapshot.State == session.StateNoRoom {
+		c.clearActiveRoom()
+	}
 	return c.state
+}
+
+func (c *Controller) clearActiveRoom() {
+	c.state.RoomID = ""
+	c.state.RoomCodeMasked = ""
+	c.state.ManagementURL = ""
+	c.state.LocalNetBirdIP = ""
+	c.state.ProfileID = ""
+	c.state.Peers = []PeerSnapshot{}
+	c.state.PeersStale = false
+	c.state.LastPeerRefreshAt = ""
 }
 
 func (c *Controller) refreshRoomView(ctx context.Context) {
@@ -243,6 +325,12 @@ func publicError(err error) *PublicError {
 	}
 	if errors.Is(err, session.ErrStoredStateConflict) {
 		return &PublicError{Code: ErrSecureStore, Message: "本地房间数据不完整", Action: "修复或离开当前房间"}
+	}
+	if errors.Is(err, session.ErrSwitchConfirmationRequired) {
+		return &PublicError{Code: ErrInvalidInput, Message: "切换房间需要确认先离开当前房间", Action: "勾选确认后重试"}
+	}
+	if errors.Is(err, session.ErrInvalidSwitchMode) {
+		return &PublicError{Code: ErrInvalidInput, Message: "切换模式无效", Action: "选择创建或加入"}
 	}
 	var mismatch *clientnetbird.VersionMismatchError
 	if errors.As(err, &mismatch) {

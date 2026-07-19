@@ -62,3 +62,10 @@ export interface RevealRoomCodeResult {
   roomCode?: string
   error?: PublicError
 }
+
+export interface SwitchRoomRequest {
+  mode: 'create' | 'join'
+  roomCode: string
+  displayName: string
+  confirmed: boolean
+}

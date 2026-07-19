@@ -22,6 +22,8 @@ type fakeRoomSession struct {
 	err        error
 	view       session.RoomViewSnapshot
 	roomCode   string
+	calls      []string
+	switchReq  session.SwitchRequest
 }
 
 func (f *fakeRoomSession) Create(_ context.Context, displayName string) (session.Snapshot, error) {
@@ -41,6 +43,27 @@ func (f *fakeRoomSession) View(context.Context) (session.RoomViewSnapshot, error
 
 func (f *fakeRoomSession) RevealRoomCode(context.Context) (string, error) {
 	return f.roomCode, nil
+}
+
+func (f *fakeRoomSession) Connect(context.Context) (session.Snapshot, error) {
+	f.calls = append(f.calls, "connect")
+	return f.snapshot, f.err
+}
+
+func (f *fakeRoomSession) Disconnect(context.Context) (session.Snapshot, error) {
+	f.calls = append(f.calls, "disconnect")
+	return f.snapshot, f.err
+}
+
+func (f *fakeRoomSession) Leave(context.Context) (session.Snapshot, error) {
+	f.calls = append(f.calls, "leave")
+	return f.snapshot, f.err
+}
+
+func (f *fakeRoomSession) Switch(_ context.Context, request session.SwitchRequest) (session.Snapshot, error) {
+	f.calls = append(f.calls, "switch")
+	f.switchReq = request
+	return f.snapshot, f.err
 }
 
 func testController(rooms RoomSession) *Controller {
@@ -119,6 +142,27 @@ func TestControllerPublishesActiveRoomViewAndExplicitReveal(t *testing.T) {
 	result := controller.RevealRoomCode()
 	if result.Error != nil || result.RoomCode != "AAAA-BBBB-CCCC" {
 		t.Fatalf("reveal=%+v", result)
+	}
+}
+
+func TestControllerLifecycleCommandsUseStableBusyBoundary(t *testing.T) {
+	rooms := &fakeRoomSession{snapshot: session.Snapshot{Revision: 5, State: session.StateNoRoom}}
+	controller := testController(rooms)
+
+	if state := controller.ConnectRoom(); state.State != StateNoRoom || state.BusyCommand != "" {
+		t.Fatalf("connect state=%+v", state)
+	}
+	if state := controller.DisconnectRoom(); state.State != StateNoRoom || state.BusyCommand != "" {
+		t.Fatalf("disconnect state=%+v", state)
+	}
+	if state := controller.SwitchRoom(SwitchRoomRequest{Mode: "join", RoomCode: "7X4K-329B-YY95", Confirmed: true}); state.State != StateNoRoom || state.BusyCommand != "" {
+		t.Fatalf("switch state=%+v", state)
+	}
+	if len(rooms.calls) != 3 || rooms.calls[0] != "connect" || rooms.calls[1] != "disconnect" || rooms.calls[2] != "switch" {
+		t.Fatalf("calls=%v", rooms.calls)
+	}
+	if rooms.switchReq.Mode != "join" || rooms.switchReq.RoomCode != "7X4K-329B-YY95" || !rooms.switchReq.Confirmed {
+		t.Fatalf("switch request=%+v", rooms.switchReq)
 	}
 }
 

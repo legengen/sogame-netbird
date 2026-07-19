@@ -93,6 +93,7 @@ type SwitchRoomRequest struct {
 	Mode        string `json:"mode"`
 	RoomCode    string `json:"roomCode,omitempty"`
 	DisplayName string `json:"displayName"`
+	Confirmed   bool   `json:"confirmed"`
 }
 
 type DiagnosticResult struct {

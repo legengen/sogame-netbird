@@ -158,6 +158,11 @@ func (s *Service) Disconnect(ctx context.Context) (Snapshot, error) {
 	return s.machine.Apply(Facts{RoomSaved: true, UserDisconnected: true}), nil
 }
 
+// Connect resumes the saved managed profile without requesting a new Setup Key.
+func (s *Service) Connect(ctx context.Context) (Snapshot, error) {
+	return s.Reconnect(ctx)
+}
+
 func (s *Service) Reconnect(ctx context.Context) (Snapshot, error) {
 	if err := s.beginCommand(); err != nil {
 		return s.State(), err

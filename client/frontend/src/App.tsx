@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   Wifi,
 } from 'lucide-react'
-import { createRoom, getState, joinRoom, revealRoomCode } from './bridge'
+import { connectRoom, createRoom, disconnectRoom, getState, joinRoom, leaveRoom, revealRoomCode, switchRoom } from './bridge'
 import { isValidRoomCode, normalizeRoomCode } from './roomCode'
 import type { StateSnapshot } from './types'
 
@@ -37,6 +37,10 @@ function App() {
   const [snapshot, setSnapshot] = useState<StateSnapshot | null>(null)
   const [revealedRoomCode, setRevealedRoomCode] = useState('')
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const [switchOpen, setSwitchOpen] = useState(false)
+  const [switchMode, setSwitchMode] = useState<EntryMode>('join')
+  const [switchCode, setSwitchCode] = useState('')
+  const [switchConfirmed, setSwitchConfirmed] = useState(false)
 
   useEffect(() => {
     void getState().then(setSnapshot)
@@ -95,6 +99,29 @@ function App() {
       ? await createRoom({ displayName: '' })
       : await joinRoom({ roomCode, displayName: '' })
     setSnapshot(next)
+  }
+
+  async function runLifecycle(action: 'connect' | 'disconnect' | 'leave') {
+    if (busy) return
+    if (action === 'leave' && !window.confirm('确认离开当前房间？这会移除本机房间配置。')) return
+    setSnapshot((current) => current ? { ...current, busyCommand: action, error: undefined } : current)
+    const next = action === 'connect' ? await connectRoom() : action === 'disconnect' ? await disconnectRoom() : await leaveRoom()
+    setSnapshot(next)
+    if (action === 'leave' && next.state === 'NoRoom') {
+      setSwitchOpen(false)
+      setSwitchConfirmed(false)
+    }
+  }
+
+  async function submitSwitch() {
+    if (busy || !switchConfirmed || (switchMode === 'join' && !isValidRoomCode(switchCode))) return
+    setSnapshot((current) => current ? { ...current, busyCommand: 'switch', error: undefined } : current)
+    const next = await switchRoom({ mode: switchMode, roomCode: switchCode, displayName: '', confirmed: true })
+    setSnapshot(next)
+    if (next.state !== 'RecoverableError') {
+      setSwitchOpen(false)
+      setSwitchConfirmed(false)
+    }
   }
 
   return (
@@ -203,6 +230,25 @@ function App() {
                 </div>
               )}
             </div>
+            <div className="lifecycle-actions">
+              <button type="button" className="secondary-action" disabled={busy} onClick={() => void runLifecycle('connect')}>连接</button>
+              <button type="button" className="secondary-action" disabled={busy} onClick={() => void runLifecycle('disconnect')}>断开</button>
+              <button type="button" className="secondary-action" disabled={busy} onClick={() => void runLifecycle('leave')}>离开</button>
+              <button type="button" className="secondary-action" disabled={busy} onClick={() => setSwitchOpen((open) => !open)}>切换房间</button>
+            </div>
+            {switchOpen && (
+              <div className="switch-panel">
+                <div className="segmented" aria-label="切换方式">
+                  <button className={switchMode === 'create' ? 'selected' : ''} type="button" onClick={() => setSwitchMode('create')}>创建新房间</button>
+                  <button className={switchMode === 'join' ? 'selected' : ''} type="button" onClick={() => setSwitchMode('join')}>加入其他房间</button>
+                </div>
+                {switchMode === 'join' && (
+                  <input className="switch-input" value={switchCode} onChange={(event) => setSwitchCode(normalizeRoomCode(event.target.value))} placeholder="XXXX-XXXX-XXXX" maxLength={14} autoComplete="off" spellCheck={false} />
+                )}
+                <label className="confirm-row"><input type="checkbox" checked={switchConfirmed} onChange={(event) => setSwitchConfirmed(event.target.checked)} />确认先离开当前房间</label>
+                <button className="primary-action" type="button" disabled={busy || !switchConfirmed || (switchMode === 'join' && !isValidRoomCode(switchCode))} onClick={() => void submitSwitch()}>切换并连接</button>
+              </div>
+            )}
             {copyState === 'failed' && <div className="inline-error" role="alert">无法访问系统剪贴板，请使用显示按钮查看房间码。</div>}
           </section>
         ) : (
