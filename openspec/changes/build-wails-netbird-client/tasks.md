@@ -26,7 +26,7 @@
 ## 4. Local RPC Adapter
 
 - [x] 4.1 Generate or vendor only the required official v0.74.7 RPC bindings with license and source attribution
-- [ ] 4.2 Implement the project-owned NetBird adapter interface and normalized DTO mapping
+- [x] 4.2 Implement the project-owned NetBird adapter interface and normalized DTO mapping
 - [ ] 4.3 Implement exact v0.74.7 daemon version enforcement and typed mismatch repair results
 - [ ] 4.4 Implement managed `sogame-room` profile creation, selection, validation, and removal without changing unrelated profiles
 - [ ] 4.5 Implement enrollment, connect, disconnect, deregistration, status, and local event delivery over RPC
