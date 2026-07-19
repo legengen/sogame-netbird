@@ -1,0 +1,37 @@
+# Sogame Client v0.1.0 Release Checklist
+
+## Version and source
+
+- [x] Release branch is `release/0.1.0` from the merged `develop` branch.
+- [x] Frontend, package manifest, archive name, and Windows executable metadata use `0.1.0`.
+- [x] NetBird client artifact and server image are pinned to `0.74.7`.
+- [x] Official MSI digest and NetBird GmbH publisher signature are verified before packaging.
+- [ ] OpenSpec change `build-wails-netbird-client` has all release gates complete and is archived.
+
+## Automated verification
+
+- [x] `go test ./...`
+- [x] `go test -race ./app ./internal/diagnostics ./internal/observability`
+- [x] `go vet ./...`
+- [x] Frontend `npm test` and `npm run build`
+- [x] `wails build -clean`
+- [x] Official v0.74.7 daemon RPC contract probe
+- [x] MSI signature, digest, and tamper checks
+- [x] P2P, forced Relay, cross-room isolation, and daemon restart tests
+
+## Release-candidate gates
+
+- [ ] Run clean install, repair, upgrade, GUI-only uninstall, and optional daemon removal on Windows 10 x64.
+- [ ] Repeat the install lifecycle matrix on Windows 11 x64.
+- [ ] Verify physical sleep resume, network switching, and GUI restart behavior.
+- [ ] Build the final package from a clean checkout and run `scripts/verify-release-package.ps1`.
+- [ ] Sign `sogame.exe` and `sogame-helper.exe` with the release certificate and verify Authenticode.
+- [ ] Publish SHA-256 checksums for the ZIP and all shipped executable artifacts.
+- [ ] Confirm no Setup Key, access token, Room Code, private key, or local environment file is present in the package.
+
+## GitFlow completion
+
+- [ ] Review and merge `release/0.1.0` into `main` with `--no-ff`.
+- [ ] Tag the resulting `main` commit as `v0.1.0`.
+- [ ] Merge `release/0.1.0` back into `develop`.
+- [ ] Delete the release branch after both merges are complete.
