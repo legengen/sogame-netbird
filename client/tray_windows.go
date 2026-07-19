@@ -126,7 +126,6 @@ func (t *systemTray) run() {
 	trackMenu := user32.NewProc("TrackPopupMenu")
 	destroyMenu := user32.NewProc("DestroyMenu")
 	getCursor := user32.NewProc("GetCursorPos")
-	getModuleHandle := user32.NewProc("GetModuleHandleW")
 
 	className, _ := windows.UTF16PtrFromString("SogameNetBirdTrayWindow")
 	t.callback = windows.NewCallback(func(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
@@ -217,4 +216,7 @@ func (t *systemTray) quitApp() {
 	}
 }
 
-var postMessage = windows.NewLazySystemDLL("user32.dll").NewProc("PostMessageW")
+var (
+	getModuleHandle = windows.NewLazySystemDLL("kernel32.dll").NewProc("GetModuleHandleW")
+	postMessage     = windows.NewLazySystemDLL("user32.dll").NewProc("PostMessageW")
+)
