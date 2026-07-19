@@ -77,5 +77,5 @@
 - [ ] 9.3 Verify room creation, room joining, managed profile isolation, and WaitingForPeer behavior against the self-hosted control plane
 - [x] 9.4 Verify same-room P2P connectivity with UDP 3478 available and Relay fallback with direct connectivity blocked
 - [ ] 9.5 Verify sleep resume, network switching, daemon restart, GUI restart, disconnect, reconnect, leave, and switch workflows
-- [ ] 9.6 Verify cross-room isolation and confirm the client never offers server-side room disablement
+- [x] 9.6 Verify cross-room isolation and confirm the client never offers server-side room disablement
 - [ ] 9.7 Run Go, frontend, Wails, RPC contract, secret-leak, installer, and end-to-end test suites and document the release evidence
