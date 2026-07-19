@@ -40,7 +40,7 @@ func (s *ManagedProfileStore) Ensure(ctx context.Context, expectedID string) (Pr
 	}
 	if expectedID != "" {
 		for _, profile := range profiles {
-			if profile.ID == expectedID && profile.Name == ManagedProfileName {
+			if profile.ID == expectedID {
 				return profile, nil
 			}
 		}

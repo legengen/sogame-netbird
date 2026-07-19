@@ -58,8 +58,19 @@ func TestManagedProfileNeverAdoptsUnownedSameName(t *testing.T) {
 	}
 }
 
-func TestManagedProfileValidatesExactIDAndName(t *testing.T) {
+func TestManagedProfileValidatesExactIDAfterDaemonRenamesDisplayName(t *testing.T) {
 	client := &fakeProfileClient{profiles: []*daemonpb.Profile{{Id: "managed-id", Name: "renamed"}}}
+	profile, err := NewManagedProfileStore(client, "user").Validate(context.Background(), "managed-id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profile.ID != "managed-id" || profile.Name != "renamed" {
+		t.Fatalf("profile=%+v", profile)
+	}
+}
+
+func TestManagedProfileRejectsUnknownConcreteID(t *testing.T) {
+	client := &fakeProfileClient{profiles: []*daemonpb.Profile{{Id: "other-id", Name: ManagedProfileName}}}
 	_, err := NewManagedProfileStore(client, "user").Validate(context.Background(), "managed-id")
 	if !errors.Is(err, ErrManagedProfileInconsistent) {
 		t.Fatalf("error=%v", err)
