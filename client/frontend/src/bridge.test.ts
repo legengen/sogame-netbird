@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createRoom, joinRoom, revealRoomCode } from './bridge'
+import { createRoom, joinRoom, repairService, revealRoomCode } from './bridge'
 import type { StateSnapshot } from './types'
 
 const connected: StateSnapshot = {
@@ -59,5 +59,12 @@ describe('Wails room workflow bridge', () => {
     await invokeSwitch({ mode: 'join', roomCode: '7X4K-329B-YY95', displayName: '', confirmed: true })
     expect(state).toHaveBeenCalledTimes(3)
     expect(switchRoom).toHaveBeenCalledWith({ mode: 'join', roomCode: '7X4K-329B-YY95', displayName: '', confirmed: true })
+  })
+
+  it('routes service repair through the Wails controller', async () => {
+    const repair = vi.fn().mockResolvedValue(connected)
+    vi.stubGlobal('window', { go: { app: { Controller: { RepairService: repair } } } })
+    await expect(repairService()).resolves.toEqual(connected)
+    expect(repair).toHaveBeenCalledOnce()
   })
 })

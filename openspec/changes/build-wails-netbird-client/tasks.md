@@ -59,7 +59,7 @@
 - [x] 7.1 Build the no-room view with Create Room and Join Room workflows
 - [x] 7.2 Build the active-room view with protected room-code reveal/copy, local NetBird IP, peer list, stale state, and P2P or Relay status
 - [x] 7.3 Add Connect, Disconnect, Leave, and confirmed Switch interactions with stable disabled and progress states
-- [ ] 7.4 Add service missing, service repair, version mismatch, Room API error, and daemon recovery views
+- [x] 7.4 Add service missing, service repair, version mismatch, Room API error, and daemon recovery views
 - [ ] 7.5 Add system tray behavior so closing the window retains connectivity and exiting the GUI does not mutate daemon state
 - [ ] 7.6 Verify all text fits and controls remain usable across supported Windows scaling settings and compact desktop sizes
 

@@ -13,6 +13,7 @@ declare global {
           DisconnectRoom: () => Promise<StateSnapshot>
           LeaveRoom: () => Promise<StateSnapshot>
           SwitchRoom: (request: SwitchRoomRequest) => Promise<StateSnapshot>
+          RepairService: () => Promise<StateSnapshot>
         }
       }
     }
@@ -91,6 +92,14 @@ export async function switchRoom(request: SwitchRoomRequest): Promise<StateSnaps
     return unavailableState('switch')
   }
   return binding(request)
+}
+
+export async function repairService(): Promise<StateSnapshot> {
+  const binding = window.go?.app?.Controller?.RepairService
+  if (!binding) {
+    return unavailableState('repair')
+  }
+  return binding()
 }
 
 async function invokeLifecycle(command: 'ConnectRoom' | 'DisconnectRoom' | 'LeaveRoom', label: string): Promise<StateSnapshot> {

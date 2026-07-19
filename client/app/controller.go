@@ -11,6 +11,7 @@ import (
 	"time"
 
 	clientnetbird "github.com/legengen/sogame-netbird/client/internal/netbird"
+	"github.com/legengen/sogame-netbird/client/internal/platform"
 	"github.com/legengen/sogame-netbird/client/internal/roomapi"
 	"github.com/legengen/sogame-netbird/client/internal/session"
 )
@@ -18,12 +19,18 @@ import (
 const expectedNetBirdVersion = "0.74.7"
 
 type Controller struct {
-	mu     sync.RWMutex
-	ctx    context.Context
-	logger *slog.Logger
-	state  StateSnapshot
-	rooms  RoomSession
-	close  func() error
+	mu      sync.RWMutex
+	ctx     context.Context
+	logger  *slog.Logger
+	state   StateSnapshot
+	rooms   RoomSession
+	close   func() error
+	service ServiceChecker
+	repair  func(context.Context) error
+}
+
+type ServiceChecker interface {
+	Inspect(context.Context) (platform.ServiceInspection, error)
 }
 
 // RoomSession is the narrow command surface exposed from the session layer.
@@ -68,12 +75,90 @@ func NewWithSession(logger *slog.Logger, rooms RoomSession, close func() error) 
 	return controller
 }
 
+func (c *Controller) ConfigureService(checker ServiceChecker, repair func(context.Context) error) {
+	c.mu.Lock()
+	c.service = checker
+	c.repair = repair
+	c.mu.Unlock()
+}
+
 func (c *Controller) Startup(ctx context.Context) {
 	c.mu.Lock()
 	c.ctx = ctx
 	c.mu.Unlock()
 	c.logger.Info("application started")
 	go c.refreshRoomView(ctx)
+	go c.refreshService(ctx)
+}
+
+func (c *Controller) RepairService() StateSnapshot {
+	c.mu.RLock()
+	repair := c.repair
+	ctx := c.ctx
+	c.mu.RUnlock()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if repair == nil {
+		c.mu.Lock()
+		c.state.Error = publicError(platform.ErrServiceUnavailable)
+		c.state.Service.RepairRequired = true
+		state := c.state
+		c.mu.Unlock()
+		return state
+	}
+	c.mu.Lock()
+	c.state.BusyCommand = "repair"
+	c.state.Error = nil
+	c.mu.Unlock()
+	err := repair(ctx)
+	c.mu.Lock()
+	c.state.BusyCommand = ""
+	if err != nil {
+		c.state.Error = publicError(err)
+		c.state.Service.RepairRequired = true
+		state := c.state
+		c.mu.Unlock()
+		return state
+	}
+	c.state.Error = nil
+	c.state.Service.RepairRequired = false
+	state := c.state
+	c.mu.Unlock()
+	c.refreshService(ctx)
+	return state
+}
+
+func (c *Controller) refreshService(ctx context.Context) {
+	c.mu.RLock()
+	checker := c.service
+	c.mu.RUnlock()
+	if checker == nil {
+		return
+	}
+	inspection, err := checker.Inspect(ctx)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.state.Service = ServiceSnapshot{
+		Installed:       inspection.Installed,
+		Running:         inspection.Running,
+		Version:         inspection.Version,
+		ExpectedVersion: inspection.ExpectedVersion,
+		RepairRequired:  inspection.Health != platform.ServiceReady,
+	}
+	if err != nil && c.state.Error == nil {
+		c.state.Error = publicError(err)
+	}
+	if c.state.Error == nil {
+		switch inspection.Health {
+		case platform.ServiceMissing:
+			c.state.Error = &PublicError{Code: ErrServiceMissing, Message: "NetBird 服务未安装", Retryable: true, Action: "修复 NetBird 服务"}
+		case platform.ServiceVersionMismatch:
+			c.state.Error = &PublicError{Code: ErrVersionMismatch, Message: "NetBird 服务版本不匹配", Action: "修复 NetBird 服务"}
+		case platform.ServiceStopped, platform.ServiceUnhealthy:
+			c.state.Error = &PublicError{Code: ErrServiceUnavailable, Message: "NetBird 服务未运行", Retryable: true, Action: "修复或启动服务"}
+		}
+	}
 }
 
 func (c *Controller) Shutdown(context.Context) {
@@ -338,6 +423,15 @@ func publicError(err error) *PublicError {
 	}
 	if errors.Is(err, clientnetbird.ErrManagedProfileConflict) || errors.Is(err, clientnetbird.ErrManagedProfileInconsistent) {
 		return &PublicError{Code: ErrProfileConflict, Message: "NetBird 管理配置与本地房间不一致", Action: "修复 NetBird 服务"}
+	}
+	if errors.Is(err, platform.ErrServiceMissing) {
+		return &PublicError{Code: ErrServiceMissing, Message: "NetBird 服务未安装", Retryable: true, Action: "修复 NetBird 服务"}
+	}
+	if errors.Is(err, platform.ErrServiceUnavailable) {
+		return &PublicError{Code: ErrServiceUnavailable, Message: "NetBird 服务暂时不可用", Retryable: true, Action: "检查服务或修复"}
+	}
+	if errors.Is(err, platform.ErrServiceAccess) {
+		return &PublicError{Code: ErrServiceUnavailable, Message: "无法读取 NetBird 服务状态", Retryable: true, Action: "重试或修复服务"}
 	}
 	if strings.Contains(strings.ToLower(err.Error()), "room session is unavailable") {
 		return &PublicError{Code: ErrServiceUnavailable, Message: "NetBird 服务不可用", Retryable: true, Action: "检查服务后重试"}

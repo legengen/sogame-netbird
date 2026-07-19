@@ -9,6 +9,7 @@ import (
 	"time"
 
 	clientnetbird "github.com/legengen/sogame-netbird/client/internal/netbird"
+	"github.com/legengen/sogame-netbird/client/internal/platform"
 	"github.com/legengen/sogame-netbird/client/internal/roomapi"
 	"github.com/legengen/sogame-netbird/client/internal/securestore"
 	"github.com/legengen/sogame-netbird/client/internal/session"
@@ -24,6 +25,15 @@ type fakeRoomSession struct {
 	roomCode   string
 	calls      []string
 	switchReq  session.SwitchRequest
+}
+
+type fakeServiceChecker struct {
+	inspection platform.ServiceInspection
+	err        error
+}
+
+func (f fakeServiceChecker) Inspect(context.Context) (platform.ServiceInspection, error) {
+	return f.inspection, f.err
 }
 
 func (f *fakeRoomSession) Create(_ context.Context, displayName string) (session.Snapshot, error) {
@@ -163,6 +173,23 @@ func TestControllerLifecycleCommandsUseStableBusyBoundary(t *testing.T) {
 	}
 	if rooms.switchReq.Mode != "join" || rooms.switchReq.RoomCode != "7X4K-329B-YY95" || !rooms.switchReq.Confirmed {
 		t.Fatalf("switch request=%+v", rooms.switchReq)
+	}
+}
+
+func TestControllerPublishesServiceRepairState(t *testing.T) {
+	controller := testController(nil)
+	controller.ConfigureService(fakeServiceChecker{inspection: platform.ServiceInspection{
+		Health:          platform.ServiceMissing,
+		ExpectedVersion: "0.74.7",
+	}}, func(context.Context) error { return nil })
+	controller.refreshService(context.Background())
+	state := controller.GetState()
+	if state.Error == nil || state.Error.Code != ErrServiceMissing || !state.Service.RepairRequired || state.Service.Installed {
+		t.Fatalf("state=%+v", state)
+	}
+	state = controller.RepairService()
+	if state.BusyCommand != "" || state.Error != nil {
+		t.Fatalf("repair state=%+v", state)
 	}
 }
 

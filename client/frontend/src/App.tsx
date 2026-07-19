@@ -13,7 +13,7 @@ import {
   ShieldCheck,
   Wifi,
 } from 'lucide-react'
-import { connectRoom, createRoom, disconnectRoom, getState, joinRoom, leaveRoom, revealRoomCode, switchRoom } from './bridge'
+import { connectRoom, createRoom, disconnectRoom, getState, joinRoom, leaveRoom, repairService, revealRoomCode, switchRoom } from './bridge'
 import { isValidRoomCode, normalizeRoomCode } from './roomCode'
 import type { StateSnapshot } from './types'
 
@@ -48,6 +48,8 @@ function App() {
 
   const state = snapshot?.state ?? 'NoRoom'
   const busy = Boolean(snapshot?.busyCommand)
+  const errorCode = snapshot?.error?.code
+  const canRepair = Boolean(snapshot?.service.repairRequired) || errorCode === 'NETBIRD_SERVICE_MISSING' || errorCode === 'NETBIRD_VERSION_MISMATCH' || errorCode === 'NETBIRD_SERVICE_UNAVAILABLE'
 
   async function showRoomCode() {
     const result = await revealRoomCode()
@@ -124,6 +126,12 @@ function App() {
     }
   }
 
+  async function runRepair() {
+    if (busy) return
+    setSnapshot((current) => current ? { ...current, busyCommand: 'repair', error: undefined } : current)
+    setSnapshot(await repairService())
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -166,6 +174,22 @@ function App() {
             <CircleHelp size={18} />
           </button>
         </header>
+
+        {state === 'Reconnecting' && (
+          <div className="recovery-banner reconnect-banner" role="status">
+            <RefreshCw size={17} />
+            <div><strong>正在恢复 NetBird 连接</strong><span>官方 daemon 正在重新连接控制面，房间身份会保留。</span></div>
+          </div>
+        )}
+        {snapshot?.error && (state === 'RecoverableError' || canRepair) && (
+          <div className="recovery-banner error-banner" role="alert">
+            <div>
+              <strong>{snapshot.error.message}</strong>
+              <span>{snapshot.error.action || '请稍后重试'}</span>
+            </div>
+            {canRepair && <button type="button" className="secondary-action" disabled={busy} onClick={() => void runRepair()}>{busy ? '正在修复...' : '修复服务'}</button>}
+          </div>
+        )}
 
         {snapshot?.roomId ? (
           <section className="active-panel" aria-labelledby="room-title">

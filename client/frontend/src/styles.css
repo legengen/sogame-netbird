@@ -192,6 +192,47 @@ h1 {
   border-radius: 6px;
 }
 
+.recovery-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 64px;
+  gap: 16px;
+  margin: 18px 32px 0;
+  padding: 12px 15px;
+  border: 1px solid #dbe2e5;
+  border-radius: 7px;
+}
+
+.recovery-banner > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.recovery-banner strong {
+  color: #2a373e;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.recovery-banner span {
+  color: #68777f;
+  font-size: 11px;
+}
+
+.reconnect-banner {
+  color: #87631f;
+  background: #fff9eb;
+  border-color: #ead9ad;
+}
+
+.error-banner {
+  color: #873d3a;
+  background: #fff5f4;
+  border-color: #efcfcc;
+}
+
 .entry-panel {
   width: min(100% - 64px, 620px);
   margin: 56px auto 40px;
@@ -588,6 +629,10 @@ h1 {
 
   .topbar {
     padding-inline: 24px;
+  }
+
+  .recovery-banner {
+    margin-inline: 24px;
   }
 
   .entry-panel {
