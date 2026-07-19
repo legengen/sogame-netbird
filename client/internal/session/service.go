@@ -16,9 +16,11 @@ import (
 const cleanupTimeout = 5 * time.Second
 
 var (
-	ErrRoomAlreadySaved    = errors.New("a room is already saved")
-	ErrStoredStateConflict = errors.New("saved room state is incomplete or inconsistent")
-	ErrCommandInProgress   = errors.New("a room command is already in progress")
+	ErrRoomAlreadySaved           = errors.New("a room is already saved")
+	ErrStoredStateConflict        = errors.New("saved room state is incomplete or inconsistent")
+	ErrCommandInProgress          = errors.New("a room command is already in progress")
+	ErrSwitchConfirmationRequired = errors.New("switching rooms requires confirmation")
+	ErrInvalidSwitchMode          = errors.New("switch mode must be create or join")
 )
 
 type RoomAPI interface {
@@ -118,28 +120,7 @@ func (s *Service) Leave(ctx context.Context) (Snapshot, error) {
 		return s.State(), err
 	}
 	defer s.endCommand()
-	metadata, err := s.loadSavedRoom()
-	if err != nil {
-		return s.fail(err)
-	}
-	if err := s.netbird.Deregister(ctx, metadata.ProfileID); err != nil {
-		return s.fail(err)
-	}
-	if err := s.netbird.RemoveProfile(ctx, metadata.ProfileID); err != nil {
-		return s.fail(err)
-	}
-
-	var clearFailures int
-	if err := s.metadata.Clear(); err != nil {
-		clearFailures++
-	}
-	if err := s.codes.Clear(); err != nil {
-		clearFailures++
-	}
-	if clearFailures > 0 {
-		return s.fail(&TransactionError{CleanupFailures: clearFailures})
-	}
-	return s.machine.Apply(Facts{}), nil
+	return s.leaveUnlocked(ctx)
 }
 
 func (s *Service) State() Snapshot { return s.machine.Snapshot() }
@@ -151,6 +132,50 @@ func (s *Service) Create(ctx context.Context, hostname string) (Snapshot, error)
 	}
 	return s.enroll(ctx, hostname, func(ctx context.Context) (roomapi.Enrollment, error) {
 		return s.rooms.Create(ctx, intent)
+	})
+}
+
+type SwitchRequest struct {
+	Mode      string
+	RoomCode  string
+	Hostname  string
+	Confirmed bool
+}
+
+func (s *Service) Switch(ctx context.Context, request SwitchRequest) (Snapshot, error) {
+	if !request.Confirmed {
+		return s.State(), ErrSwitchConfirmationRequired
+	}
+	if request.Mode != "create" && request.Mode != "join" {
+		return s.fail(ErrInvalidSwitchMode)
+	}
+	request.Hostname = strings.TrimSpace(request.Hostname)
+	if request.Hostname == "" || len(request.Hostname) > 63 {
+		return s.fail(errors.New("device name must contain 1 to 63 characters"))
+	}
+	if err := s.beginCommand(); err != nil {
+		return s.State(), err
+	}
+	defer s.endCommand()
+	if _, err := s.loadSavedRoom(); err == nil {
+		if _, err := s.leaveUnlocked(ctx); err != nil {
+			return s.State(), err
+		}
+	} else if !errors.Is(err, securestore.ErrNoRoomMetadata) {
+		return s.fail(err)
+	}
+
+	if request.Mode == "create" {
+		intent, err := roomapi.NewCreateIntent()
+		if err != nil {
+			return s.fail(err)
+		}
+		return s.enrollUnlocked(ctx, request.Hostname, func(ctx context.Context) (roomapi.Enrollment, error) {
+			return s.rooms.Create(ctx, intent)
+		})
+	}
+	return s.enrollUnlocked(ctx, request.Hostname, func(ctx context.Context) (roomapi.Enrollment, error) {
+		return s.rooms.Join(ctx, request.RoomCode)
 	})
 }
 
@@ -169,6 +194,10 @@ func (s *Service) enroll(ctx context.Context, hostname string, obtain func(conte
 		return s.State(), err
 	}
 	defer s.endCommand()
+	return s.enrollUnlocked(ctx, hostname, obtain)
+}
+
+func (s *Service) enrollUnlocked(ctx context.Context, hostname string, obtain func(context.Context) (roomapi.Enrollment, error)) (Snapshot, error) {
 	if err := s.requireEmptyStorage(); err != nil {
 		return s.fail(err)
 	}
@@ -240,6 +269,30 @@ func (s *Service) enroll(ctx context.Context, hostname string, obtain func(conte
 		facts.DaemonPeers = status.Peers
 	}
 	return s.machine.Apply(facts), nil
+}
+
+func (s *Service) leaveUnlocked(ctx context.Context) (Snapshot, error) {
+	metadata, err := s.loadSavedRoom()
+	if err != nil {
+		return s.fail(err)
+	}
+	if err := s.netbird.Deregister(ctx, metadata.ProfileID); err != nil {
+		return s.fail(err)
+	}
+	if err := s.netbird.RemoveProfile(ctx, metadata.ProfileID); err != nil {
+		return s.fail(err)
+	}
+	var clearFailures int
+	if err := s.metadata.Clear(); err != nil {
+		clearFailures++
+	}
+	if err := s.codes.Clear(); err != nil {
+		clearFailures++
+	}
+	if clearFailures > 0 {
+		return s.fail(&TransactionError{CleanupFailures: clearFailures})
+	}
+	return s.machine.Apply(Facts{}), nil
 }
 
 func (s *Service) beginCommand() error {
