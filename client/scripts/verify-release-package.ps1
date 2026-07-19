@@ -24,4 +24,8 @@ $manifest = Get-Content -Raw -LiteralPath (Join-Path $root 'package-manifest.jso
 if ($manifest.platform -ne 'windows/amd64' -or $manifest.netbirdVersion -ne '0.74.7' -or $manifest.signedReady -ne $true) {
     throw 'Release package manifest is not a signed-ready v0.74.7 Windows package'
 }
+$applicationVersion = (Get-Item -LiteralPath (Join-Path $root 'sogame.exe')).VersionInfo
+if ($applicationVersion.FileVersionRaw.ToString() -ne '0.1.0.0' -or $applicationVersion.ProductVersionRaw.ToString() -ne '0.1.0.0') {
+    throw 'Sogame executable version metadata is not v0.1.0'
+}
 Write-Output "Verified release package $root with NetBird SHA-256 $hash"
