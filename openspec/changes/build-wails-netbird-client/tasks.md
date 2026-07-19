@@ -48,7 +48,7 @@
 - [x] 6.1 Implement the normalized NoRoom, Enrolling, ControlPlaneConnected, WaitingForPeer, ConnectingPeer, ConnectedP2P, ConnectedRelay, Reconnecting, and RecoverableError states
 - [x] 6.2 Implement Create and Join transactions with compensation for partial local enrollment
 - [x] 6.3 Implement Disconnect and Reconnect while preserving the existing daemon peer identity
-- [ ] 6.4 Implement Leave by deregistering the peer, removing only the managed profile, and clearing protected local room data
+- [x] 6.4 Implement Leave by deregistering the peer, removing only the managed profile, and clearing protected local room data
 - [ ] 6.5 Implement Switch as a confirmed complete Leave followed by a new Create or Join flow
 - [ ] 6.6 Implement five-second foreground and thirty-second tray Room API refresh with stale data markers
 - [ ] 6.7 Implement P2P-preferred and Relay-success presentation using daemon-reported path selection only

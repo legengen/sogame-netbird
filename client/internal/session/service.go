@@ -113,6 +113,35 @@ func (s *Service) Reconnect(ctx context.Context) (Snapshot, error) {
 	return s.machine.Apply(facts), nil
 }
 
+func (s *Service) Leave(ctx context.Context) (Snapshot, error) {
+	if err := s.beginCommand(); err != nil {
+		return s.State(), err
+	}
+	defer s.endCommand()
+	metadata, err := s.loadSavedRoom()
+	if err != nil {
+		return s.fail(err)
+	}
+	if err := s.netbird.Deregister(ctx, metadata.ProfileID); err != nil {
+		return s.fail(err)
+	}
+	if err := s.netbird.RemoveProfile(ctx, metadata.ProfileID); err != nil {
+		return s.fail(err)
+	}
+
+	var clearFailures int
+	if err := s.metadata.Clear(); err != nil {
+		clearFailures++
+	}
+	if err := s.codes.Clear(); err != nil {
+		clearFailures++
+	}
+	if clearFailures > 0 {
+		return s.fail(&TransactionError{CleanupFailures: clearFailures})
+	}
+	return s.machine.Apply(Facts{}), nil
+}
+
 func (s *Service) State() Snapshot { return s.machine.Snapshot() }
 
 func (s *Service) Create(ctx context.Context, hostname string) (Snapshot, error) {
