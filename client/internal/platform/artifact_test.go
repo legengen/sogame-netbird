@@ -50,3 +50,21 @@ func TestArtifactVerifier(t *testing.T) {
 		})
 	}
 }
+
+func TestArtifactVerifierRejectsTamperedBytes(t *testing.T) {
+	original := []byte("official artifact fixture")
+	digest := sha256.Sum256(original)
+	expected := releasebuild.WindowsArtifact{Size: int64(len(original)), SHA256: hex.EncodeToString(digest[:])}
+
+	tampered := append([]byte(nil), original...)
+	tampered[len(tampered)/2] ^= 0xff
+	path := filepath.Join(t.TempDir(), "tampered.msi")
+	if err := os.WriteFile(path, tampered, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	err := NewArtifactVerifier(fakeSignatureVerifier{}).Verify(context.Background(), path, expected)
+	if !errors.Is(err, ErrArtifactDigest) {
+		t.Fatalf("tampered artifact returned %v, want digest error", err)
+	}
+}
