@@ -74,7 +74,7 @@
 
 - [x] 9.1 Build the signed-ready Windows x64 installer with Wails assets and the verified official NetBird prerequisite
 - [ ] 9.2 Test clean install, service repair, application upgrade, GUI-only uninstall, and optional daemon removal on Windows 10 and 11 x64
-- [ ] 9.3 Verify room creation, room joining, managed profile isolation, and WaitingForPeer behavior against the self-hosted control plane
+- [x] 9.3 Verify room creation, room joining, managed profile isolation, and WaitingForPeer behavior against the self-hosted control plane
 - [x] 9.4 Verify same-room P2P connectivity with UDP 3478 available and Relay fallback with direct connectivity blocked
 - [ ] 9.5 Verify sleep resume, network switching, daemon restart, GUI restart, disconnect, reconnect, leave, and switch workflows
 - [x] 9.6 Verify cross-room isolation and confirm the client never offers server-side room disablement

@@ -11,6 +11,7 @@
 - Two clients connected to the self-hosted control plane, exchanged traffic with 0% packet loss, and both reported `Peers count: 1/1 Connected` with `Connection type: P2P`.
 - With direct peer UDP temporarily blocked on one client, the official daemon selected `rels://legengen.top:443`, reported `Connection type: Relayed`, and carried four successful ICMP replies with 0% packet loss. Removing the temporary rules restored P2P and 0% packet loss.
 - A fresh Room API create/join flow was exercised through the self-hosted control plane: the peer endpoint reported exactly two connected peers, both initially observed as idle before traffic established the P2P path.
+- The room identity was selected through the dedicated `sogame-room` profile while the unrelated `default` profile remained present and inactive. Management/Signal readiness without a tunnel was observed before peer traffic transitioned the daemon to `Peers count: 1/1 Connected` and P2P.
 - Moving one client into a second room produced one peer in each room and blocked cross-room traffic. Returning it to the original room restored two peers and P2P. The desktop command surface has no room-disable operation, and the leave test rejects any administrative disable call.
 
 ## Environment-gated evidence
@@ -19,7 +20,6 @@ The following release gates remain pending because this workspace has no clean W
 
 - Clean Windows VM RPC probe and install lifecycle matrix.
 - Clean install, repair, upgrade, GUI-only uninstall, and optional daemon removal.
-- Managed `sogame-room` profile isolation against the self-hosted control plane (Room API create/join itself is verified above).
 - Sleep/network-switch/daemon-restart end-to-end workflows.
 
 These are explicit environment gates, not simulated local test results.
